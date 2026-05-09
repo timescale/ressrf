@@ -32,3 +32,5 @@ node/dist/
 # WASM build artifacts
 *.wasm
 !go/ressrf/core.wasm
+
+.cursor/
