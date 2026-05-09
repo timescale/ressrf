@@ -492,4 +492,114 @@ mod tests {
             self.0.emit(event);
         }
     }
+
+    #[test]
+    fn allow_plaintext_http_when_configured() {
+        let mut builder = PolicyBuilder::external_only();
+        builder.protocol_rules(ProtocolRules {
+            allow_plaintext_http: true,
+            require_https: false,
+        });
+        let policy = builder.build();
+        assert!(policy.validate_scheme("http").is_ok());
+        assert!(policy.validate_scheme("https").is_ok());
+    }
+
+    #[test]
+    fn require_https_overrides_allow_plaintext() {
+        let mut builder = PolicyBuilder::external_only();
+        builder.protocol_rules(ProtocolRules {
+            allow_plaintext_http: true,
+            require_https: true,
+        });
+        let policy = builder.build();
+        assert!(policy.validate_scheme("http").is_err());
+    }
+
+    #[test]
+    fn with_cloud_deny_adds_custom_ranges() {
+        let mut builder = PolicyBuilder::external_only();
+        builder.with_cloud_deny("custom_cloud", &["198.51.100.0/24"]);
+        let policy = builder.build();
+        let ip: IpAddr = "198.51.100.1".parse().unwrap();
+        assert!(policy.is_network_allowed(&[ip]).is_err());
+    }
+
+    #[test]
+    fn multiple_cloud_modules_combine() {
+        let mut builder = PolicyBuilder::external_only();
+        builder.with_cloud(crate::CloudProvider::Aws);
+        builder.with_cloud(crate::CloudProvider::Azure);
+        let policy = builder.build();
+
+        let aws_imds: IpAddr = "169.254.170.2".parse().unwrap();
+        let azure_wire: IpAddr = "168.63.129.16".parse().unwrap();
+        assert!(policy.is_network_allowed(&[aws_imds]).is_err());
+        assert!(policy.is_network_allowed(&[azure_wire]).is_err());
+    }
+
+    #[test]
+    fn user_deny_cidrs_block_specific_ranges() {
+        let mut builder = PolicyBuilder::external_only();
+        builder.add_denied(&["203.0.113.0/24"]);
+        let policy = builder.build();
+
+        let blocked: IpAddr = "203.0.113.50".parse().unwrap();
+        let allowed: IpAddr = "203.0.114.1".parse().unwrap();
+        assert!(policy.is_network_allowed(&[blocked]).is_err());
+        assert!(policy.is_network_allowed(&[allowed]).is_ok());
+    }
+
+    #[test]
+    fn header_rules_case_insensitive() {
+        let mut builder = PolicyBuilder::external_only();
+        builder.header_rules(HeaderRules {
+            required: alloc::vec![String::from("x-request-id")],
+            denied: alloc::vec![String::from("X-FORWARDED-FOR")],
+            auto_xff: false,
+        });
+        let policy = builder.build();
+
+        assert!(policy
+            .validate_headers(&[("X-Request-ID", "abc123")])
+            .is_ok());
+        assert!(policy
+            .validate_headers(&[("x-forwarded-for", "1.2.3.4")])
+            .is_err());
+    }
+
+    #[test]
+    fn validate_scheme_case_insensitive() {
+        let policy = PolicyBuilder::external_only().build();
+        assert!(policy.validate_scheme("HTTP").is_err());
+        assert!(policy.validate_scheme("HTTPS").is_ok());
+        assert!(policy.validate_scheme("Https").is_ok());
+    }
+
+    #[test]
+    fn all_ips_must_pass_external_only() {
+        let policy = PolicyBuilder::external_only().build();
+        let ips: Vec<IpAddr> = vec![
+            "8.8.8.8".parse().unwrap(),
+            "1.1.1.1".parse().unwrap(),
+            "93.184.216.34".parse().unwrap(),
+        ];
+        assert!(policy.is_network_allowed(&ips).is_ok());
+    }
+
+    #[test]
+    fn one_blocked_ip_fails_entire_check() {
+        let policy = PolicyBuilder::external_only().build();
+        let ips: Vec<IpAddr> = vec!["8.8.8.8".parse().unwrap(), "192.168.0.1".parse().unwrap()];
+        assert!(policy.is_network_allowed(&ips).is_err());
+    }
+
+    #[test]
+    fn internal_only_empty_allow_blocks_all() {
+        let policy = PolicyBuilder::internal_only().build();
+        let public: IpAddr = "8.8.8.8".parse().unwrap();
+        let private: IpAddr = "10.0.0.1".parse().unwrap();
+        assert!(policy.is_network_allowed(&[public]).is_err());
+        assert!(policy.is_network_allowed(&[private]).is_err());
+    }
 }
