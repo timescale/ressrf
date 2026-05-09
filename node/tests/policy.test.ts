@@ -99,3 +99,71 @@ describe("PolicyBuilder", () => {
     policy.close();
   });
 });
+
+describe("Cloud Providers", () => {
+  it("aws blocks IMDS", async () => {
+    const policy = await Policy.externalOnly({ cloud: ["aws"] });
+    assert.throws(
+      () => policy.isNetworkAllowed(["169.254.169.254"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    policy.close();
+  });
+
+  it("aws blocks ECS metadata", async () => {
+    const policy = await Policy.externalOnly({ cloud: ["aws"] });
+    assert.throws(
+      () => policy.isNetworkAllowed(["169.254.170.2"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    policy.close();
+  });
+
+  it("azure blocks wireserver", async () => {
+    const policy = await Policy.externalOnly({ cloud: ["azure"] });
+    assert.throws(
+      () => policy.isNetworkAllowed(["168.63.129.16"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    policy.close();
+  });
+
+  it("gcp blocks metadata endpoint", async () => {
+    const policy = await Policy.externalOnly({ cloud: ["gcp"] });
+    assert.throws(
+      () => policy.isNetworkAllowed(["169.254.169.254"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    policy.close();
+  });
+
+  it("multiple providers combine deny sets", async () => {
+    const policy = await Policy.externalOnly({ cloud: ["aws", "azure"] });
+    assert.throws(
+      () => policy.isNetworkAllowed(["169.254.170.2"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    assert.throws(
+      () => policy.isNetworkAllowed(["168.63.129.16"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    policy.close();
+  });
+
+  it("cloud providers still allow public IPs", async () => {
+    const policy = await Policy.externalOnly({ cloud: ["aws", "azure", "gcp"] });
+    assert.doesNotThrow(() => policy.isNetworkAllowed(["93.184.216.34"]));
+    policy.close();
+  });
+
+  it("PolicyBuilder.addCloud works", async () => {
+    const policy = await new PolicyBuilder("external_only")
+      .addCloud("aws", "gcp")
+      .build();
+    assert.throws(
+      () => policy.isNetworkAllowed(["169.254.170.2"]),
+      (err: unknown) => err instanceof RessrfBlockedError,
+    );
+    policy.close();
+  });
+});

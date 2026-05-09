@@ -73,11 +73,12 @@ func TestPolicyDecisions(t *testing.T) {
 
 	var vectors struct {
 		Cases []struct {
-			Name     string   `json:"name"`
-			Preset   string   `json:"preset"`
-			IPs      []string `json:"ips"`
-			Expected string   `json:"expected"`
-			Allow    []string `json:"allow"`
+			Name           string   `json:"name"`
+			Preset         string   `json:"preset"`
+			IPs            []string `json:"ips"`
+			Expected       string   `json:"expected"`
+			Allow          []string `json:"allow"`
+			CloudProviders []string `json:"cloud_providers"`
 		} `json:"cases"`
 	}
 	if err := json.Unmarshal(data, &vectors); err != nil {
@@ -99,6 +100,9 @@ func TestPolicyDecisions(t *testing.T) {
 			builder := NewPolicyBuilder(preset)
 			if len(tc.Allow) > 0 {
 				builder.WithAllowedCIDRs(tc.Allow...)
+			}
+			if len(tc.CloudProviders) > 0 {
+				builder.WithCloudProviders(tc.CloudProviders...)
 			}
 
 			policy, err := builder.Build(ctx)
@@ -129,6 +133,97 @@ func TestErrBlockedSentinel(t *testing.T) {
 	if !errors.Is(err, ErrBlocked) {
 		t.Fatal("BlockedError should match ErrBlocked via errors.Is")
 	}
+}
+
+func TestCloudProviders(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("aws blocks IMDS", func(t *testing.T) {
+		policy, err := NewPolicyBuilder(PresetExternalOnly).
+			WithCloudProviders("aws").
+			Build(ctx)
+		if err != nil {
+			t.Fatalf("build: %v", err)
+		}
+		defer func() { _ = policy.Close(ctx) }()
+
+		err = policy.IsNetworkAllowed(ctx, []string{"169.254.169.254"})
+		if err == nil {
+			t.Error("expected IMDS to be blocked")
+		} else if !errors.Is(err, ErrBlocked) {
+			t.Errorf("expected ErrBlocked, got: %v", err)
+		}
+	})
+
+	t.Run("azure blocks wireserver", func(t *testing.T) {
+		policy, err := NewPolicyBuilder(PresetExternalOnly).
+			WithCloudProviders("azure").
+			Build(ctx)
+		if err != nil {
+			t.Fatalf("build: %v", err)
+		}
+		defer func() { _ = policy.Close(ctx) }()
+
+		err = policy.IsNetworkAllowed(ctx, []string{"168.63.129.16"})
+		if err == nil {
+			t.Error("expected wireserver to be blocked")
+		} else if !errors.Is(err, ErrBlocked) {
+			t.Errorf("expected ErrBlocked, got: %v", err)
+		}
+	})
+
+	t.Run("gcp blocks metadata", func(t *testing.T) {
+		policy, err := NewPolicyBuilder(PresetExternalOnly).
+			WithCloudProviders("gcp").
+			Build(ctx)
+		if err != nil {
+			t.Fatalf("build: %v", err)
+		}
+		defer func() { _ = policy.Close(ctx) }()
+
+		err = policy.IsNetworkAllowed(ctx, []string{"169.254.169.254"})
+		if err == nil {
+			t.Error("expected metadata endpoint to be blocked")
+		} else if !errors.Is(err, ErrBlocked) {
+			t.Errorf("expected ErrBlocked, got: %v", err)
+		}
+	})
+
+	t.Run("multiple providers combine", func(t *testing.T) {
+		policy, err := NewPolicyBuilder(PresetExternalOnly).
+			WithCloudProviders("aws", "azure").
+			Build(ctx)
+		if err != nil {
+			t.Fatalf("build: %v", err)
+		}
+		defer func() { _ = policy.Close(ctx) }()
+
+		// AWS ECS metadata
+		err = policy.IsNetworkAllowed(ctx, []string{"169.254.170.2"})
+		if err == nil {
+			t.Error("expected ECS metadata to be blocked")
+		}
+		// Azure wireserver
+		err = policy.IsNetworkAllowed(ctx, []string{"168.63.129.16"})
+		if err == nil {
+			t.Error("expected wireserver to be blocked")
+		}
+	})
+
+	t.Run("public IP still allowed", func(t *testing.T) {
+		policy, err := NewPolicyBuilder(PresetExternalOnly).
+			WithCloudProviders("aws", "azure", "gcp").
+			Build(ctx)
+		if err != nil {
+			t.Fatalf("build: %v", err)
+		}
+		defer func() { _ = policy.Close(ctx) }()
+
+		err = policy.IsNetworkAllowed(ctx, []string{"93.184.216.34"})
+		if err != nil {
+			t.Errorf("expected public IP to be allowed, got: %v", err)
+		}
+	})
 }
 
 func TestDisableForTests(t *testing.T) {

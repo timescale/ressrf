@@ -8,6 +8,7 @@ export interface PolicyOptions {
   preset: Preset;
   allowCidrs?: string[];
   denyCidrs?: string[];
+  cloudProviders?: string[];
   auditSink?: AuditSink;
   wasmPath?: string;
 }
@@ -46,6 +47,7 @@ export class Policy {
       preset: options.preset,
       allow_cidrs: options.allowCidrs ?? [],
       deny_cidrs: options.denyCidrs ?? [],
+      cloud_providers: options.cloudProviders ?? [],
     };
 
     const { ptr, len } = wasm.writeJSON(config);
@@ -59,15 +61,25 @@ export class Policy {
   }
 
   static async externalOnly(
-    options?: Omit<PolicyOptions, "preset">,
+    options?: Omit<PolicyOptions, "preset"> & { cloud?: string[] },
   ): Promise<Policy> {
-    return Policy.create({ ...options, preset: "external_only" });
+    const { cloud, ...rest } = options ?? {};
+    return Policy.create({
+      ...rest,
+      preset: "external_only",
+      cloudProviders: cloud ?? rest.cloudProviders,
+    });
   }
 
   static async internalOnly(
-    options?: Omit<PolicyOptions, "preset">,
+    options?: Omit<PolicyOptions, "preset"> & { cloud?: string[] },
   ): Promise<Policy> {
-    return Policy.create({ ...options, preset: "internal_only" });
+    const { cloud, ...rest } = options ?? {};
+    return Policy.create({
+      ...rest,
+      preset: "internal_only",
+      cloudProviders: cloud ?? rest.cloudProviders,
+    });
   }
 
   isAllowed(url: string): void {
@@ -99,6 +111,7 @@ export class PolicyBuilder {
   private preset: Preset = "none";
   private allowCidrs: string[] = [];
   private denyCidrs: string[] = [];
+  private cloudProvidersList: string[] = [];
   private sink?: AuditSink;
   private wasmPath?: string;
 
@@ -113,6 +126,11 @@ export class PolicyBuilder {
 
   addDenied(...cidrs: string[]): this {
     this.denyCidrs.push(...cidrs);
+    return this;
+  }
+
+  addCloud(...providers: string[]): this {
+    this.cloudProvidersList.push(...providers);
     return this;
   }
 
@@ -131,6 +149,7 @@ export class PolicyBuilder {
       preset: this.preset,
       allowCidrs: this.allowCidrs,
       denyCidrs: this.denyCidrs,
+      cloudProviders: this.cloudProvidersList,
       auditSink: this.sink,
       wasmPath: this.wasmPath,
     });
