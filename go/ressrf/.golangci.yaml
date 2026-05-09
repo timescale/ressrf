@@ -16,26 +16,25 @@ linters:
     - bodyclose
     - exhaustive
     - copyloopvar
-
-linters-settings:
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-  revive:
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: exported
-      - name: increment-decrement
-      - name: var-declaration
-      - name: package-comments
-        disabled: true
-  exhaustive:
-    default-signifies-exhaustive: true
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: exported
+        - name: increment-decrement
+        - name: var-declaration
+        - name: package-comments
+          disabled: true
+    exhaustive:
+      default-signifies-exhaustive: true
 
 formatters:
   enable:
