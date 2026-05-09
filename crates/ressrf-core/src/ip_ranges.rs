@@ -20,10 +20,7 @@ include!(concat!(env!("OUT_DIR"), "/ip_ranges_generated.rs"));
 /// Build the complete default deny set as parsed CIDRs.
 pub fn default_deny_set() -> Vec<Cidr> {
     let mut result = Vec::with_capacity(
-        IANA_IPV4_DENY.len()
-            + IANA_IPV6_DENY.len()
-            + OVERRIDE_DENY.len()
-            + CSP_METADATA_DENY.len(),
+        IANA_IPV4_DENY.len() + IANA_IPV6_DENY.len() + OVERRIDE_DENY.len() + CSP_METADATA_DENY.len(),
     );
 
     for &cidr_str in IANA_IPV4_DENY {

@@ -297,12 +297,16 @@ pub extern "C" fn ressrf_uri_in_domain(json_ptr: *const u8, json_len: u32) -> *m
 
 // --- Audit callback support ---
 
+#[cfg(target_arch = "wasm32")]
 extern "C" {
     /// Host-provided function called when an audit event is emitted.
     /// The guest writes a length-prefixed JSON string to linear memory and
     /// passes the pointer and total length. The host reads and frees it.
     fn ressrf_host_audit_event(ptr: *const u8, len: u32);
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+unsafe extern "C" fn ressrf_host_audit_event(_ptr: *const u8, _len: u32) {}
 
 /// Global flag: whether audit callbacks are enabled.
 static mut AUDIT_ENABLED: bool = false;

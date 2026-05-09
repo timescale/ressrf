@@ -92,8 +92,7 @@ impl RedirectValidator {
 
     /// Reset the hop counter (call before starting a new request chain).
     pub fn reset(&self) {
-        self.hops
-            .store(0, std::sync::atomic::Ordering::Relaxed);
+        self.hops.store(0, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Validate a redirect target URL. Call this for each hop.
@@ -101,9 +100,7 @@ impl RedirectValidator {
     /// Returns `Ok(())` if the redirect is allowed, or an error describing
     /// why it was blocked.
     pub fn validate_hop(&self, target_url: &str) -> Result<(), HttpGuardError> {
-        let hop = self
-            .hops
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let hop = self.hops.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         if hop >= self.redirect_policy.max_redirects {
             return Err(HttpGuardError::TooManyRedirects {

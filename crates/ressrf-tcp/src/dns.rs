@@ -44,11 +44,9 @@ impl HickoryDns {
     }
 
     /// Create a hickory resolver with custom options.
-    pub fn with_options(
-        opts: hickory_resolver::config::ResolverOpts,
-    ) -> std::io::Result<Self> {
-        let mut builder = hickory_resolver::TokioResolver::builder_tokio()
-            .map_err(std::io::Error::other)?;
+    pub fn with_options(opts: hickory_resolver::config::ResolverOpts) -> std::io::Result<Self> {
+        let mut builder =
+            hickory_resolver::TokioResolver::builder_tokio().map_err(std::io::Error::other)?;
         *builder.options_mut() = opts;
         let resolver = builder.build().map_err(std::io::Error::other)?;
         Ok(Self { resolver })
