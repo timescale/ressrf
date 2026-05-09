@@ -9,7 +9,7 @@ description = "Multi-platform SSRF prevention library"
 readme = "../README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "Mostafa Moradian", email = "mostafamoradian0@gmail.com" }]
+authors = [{ name = "Mostafa Moradian", email = "mstfmoradian@gmail.com" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
