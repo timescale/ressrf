@@ -11,6 +11,7 @@ ressrf, pronounced resurf, validates network destinations (IPs, URLs, DNS result
 
 - **Policy engine:** presets (ExternalOnly, InternalOnly, None), custom allow/deny CIDR lists, IPv4 and IPv6 support, IPv4-mapped IPv6 normalization
 - **Default deny list:** IANA special-purpose registries, RFC1918, CGNAT, loopback, link-local, multicast, cloud IMDS (AWS, Azure, GCP), 6to4, Teredo, NAT64, documentation ranges
+- **IP ranges codegen:** automated script fetches IANA registries plus AWS, Azure, and GCP service IP ranges; trie-backed `ServiceRangeTable` for O(log n) longest-prefix-match lookups; monthly CI workflow keeps data fresh
 - **URI validation:** protocol allowlist (HTTP, HTTPS, WS, WSS), IDN-safe domain matching, userinfo bypass resistance, bare IP detection
 - **Pluggable audit logging:** structured events via callback interface (no opinion on logging framework), consistent across all languages
 - **Protocol adapters per language:**
@@ -24,13 +25,14 @@ ressrf, pronounced resurf, validates network destinations (IPs, URLs, DNS result
 
 | Component | Language | Description |
 |-----------|----------|-------------|
-| [`crates/ressrf-core`](crates/ressrf-core/) | Rust | Core policy engine, CIDR matching, URI validation, audit types |
+| [`crates/ressrf-core`](crates/ressrf-core/) | Rust | Core policy engine, CIDR matching, URI validation, audit types, service range trie |
 | [`crates/ressrf-http`](crates/ressrf-http/) | Rust | Tower Layer/Service with DNS validation and redirect interception |
 | [`crates/ressrf-ssh`](crates/ressrf-ssh/) | Rust | Guard wrapper for russh/async-ssh2 |
 | [`crates/ressrf-wasm`](crates/ressrf-wasm/) | Rust | WASM ABI wrapper (wasm32-wasip1) for Go and Node.js |
 | [`go/ressrf`](go/ressrf/) | Go | wazero-powered WASM integration with http.Agent, net.Dialer, SSH |
 | [`python/`](python/) | Python | PyO3 native extension with httpx, requests, paramiko adapters |
 | [`node/`](node/) | TypeScript | WebAssembly-based with undici, node:http, ssh2 adapters |
+| [`scripts/`](scripts/) | Python | IP ranges codegen (IANA + AWS/Azure/GCP service ranges) |
 
 ```
                      ┌─────────────────────────┐
@@ -286,6 +288,39 @@ rustup target add wasm32-wasip1
 cargo install wasm-tools
 ```
 
+## IP Ranges Codegen
+
+The deny list and cloud service ranges are kept up to date by `scripts/generate_ip_ranges.py`, a stdlib-only Python script that fetches upstream data:
+
+- **IANA:** IPv4/IPv6 special-purpose registry CSVs (non-globally-reachable ranges)
+- **AWS:** `ip-ranges.json` grouped by service (EC2, S3, CLOUDFRONT, etc.)
+- **Azure:** ServiceTags JSON (handles weekly rotating download URL)
+- **GCP:** `cloud.json` + `goog.json`
+
+Outputs land in `crates/ressrf-core/config/` and are compiled into Rust constants via `build.rs`. Service IP ranges are loaded at runtime into a `ServiceRangeTable` (backed by `prefix-trie`) for efficient lookups:
+
+```rust
+use ressrf_core::ServiceRangeTable;
+
+let table = ServiceRangeTable::load_all("crates/ressrf-core/config")?;
+if let Some(info) = table.lookup("52.94.76.0".parse().unwrap()) {
+    println!("IP belongs to {} / {}", info.provider, info.service);
+}
+```
+
+A monthly GitHub Actions workflow (`.github/workflows/update-ip-ranges.yml`) runs the script, validates the output, runs the full test suite, and opens a PR if anything changed.
+
+```bash
+# Run manually
+python scripts/generate_ip_ranges.py
+
+# Validate only (no writes)
+python scripts/generate_ip_ranges.py --validate-only
+
+# IANA ranges only (skip cloud service ranges)
+python scripts/generate_ip_ranges.py --iana-only
+```
+
 ## CI/CD
 
 The project runs comprehensive CI on every push and PR:
@@ -295,6 +330,7 @@ The project runs comprehensive CI on every push and PR:
 - **Python:** pytest (multi-OS), ruff format/lint, ty type check
 - **Node.js:** node:test (multi-OS), tsc type check
 - **Security:** cargo audit, cargo fuzz (weekly), zizmor (Actions linting)
+- **IP ranges:** monthly cron fetches upstream IANA and cloud service ranges, validates, tests, and opens a PR
 
 ## Contributing
 
