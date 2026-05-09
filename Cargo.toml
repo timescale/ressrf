@@ -1,5 +1,12 @@
 [workspace]
-members = ["crates/ressrf-core"]
+members = [
+    "crates/ressrf-core",
+    "crates/ressrf-tcp",
+    "crates/ressrf-http",
+    "crates/ressrf-ssh",
+    "crates/ressrf-wasm",
+    "crates/ressrf-tracing",
+]
 exclude = ["fuzz"]
 resolver = "2"
 
@@ -28,5 +35,10 @@ missing_const_for_fn = "allow"
 option_if_let_else = "allow"
 
 [workspace.dependencies]
+ressrf-core = { path = "crates/ressrf-core" }
+ressrf-tcp = { path = "crates/ressrf-tcp" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tokio = { version = "1", features = ["net", "rt", "time", "sync"] }
+tracing = "0.1"
+thiserror = "2"

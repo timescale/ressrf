@@ -1,0 +1,33 @@
+// WIT interface definition for ressrf WASM component.
+// This is a forward-looking definition for when the Component Model stabilizes.
+// Currently, the module uses a flat C-ABI with JSON serialization.
+
+package ressrf:core@0.1.0;
+
+interface policy {
+    // Opaque handle to a policy instance
+    type policy-handle = u32;
+
+    // Create a policy from JSON configuration
+    // Returns a handle or error
+    policy-new: func(config-json: string) -> result<policy-handle, string>;
+
+    // Destroy a policy
+    policy-free: func(handle: policy-handle);
+
+    // Check if IPs are allowed (JSON input/output)
+    is-network-allowed: func(handle: policy-handle, ips-json: string) -> string;
+
+    // Check if a URL request is allowed
+    is-request-allowed: func(handle: policy-handle, request-json: string) -> string;
+}
+
+interface uri {
+    // Check if a URI belongs to given domain suffixes
+    uri-in-domain: func(input-json: string) -> string;
+}
+
+world ressrf {
+    export policy;
+    export uri;
+}
