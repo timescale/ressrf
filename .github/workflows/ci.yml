@@ -80,18 +80,19 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - run: cargo test --workspace --all-features --locked
 
-  wasm-freshness:
-    name: WASM freshness check
+  build-wasm:
+    name: Build WASM
     runs-on: ubuntu-latest
     permissions:
-      contents: read # checkout
+      contents: write # push updated core.wasm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          persist-credentials: false
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true # needed for git push in commit step
       - run: rustup toolchain install stable --profile minimal --target wasm32-wasip1
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install wasm-opt (pinned to match committed core.wasm)
+      - name: Install wasm-opt
         run: |
           curl -fsSL https://github.com/WebAssembly/binaryen/releases/download/version_129/binaryen-version_129-x86_64-linux.tar.gz \
             | sudo tar -xz -C /usr/local --strip-components=1
@@ -99,16 +100,20 @@ jobs:
         run: cargo install wasm-tools --locked
       - name: Rebuild core.wasm
         run: bash go/ressrf/build_wasm.sh
-      - name: Check for drift
+      - name: Commit if changed
         run: |
           if git diff --quiet go/ressrf/core.wasm; then
             echo "core.wasm is up to date"
           else
-            echo "::error::go/ressrf/core.wasm is stale. Run 'bash go/ressrf/build_wasm.sh' and commit the result."
-            exit 1
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add go/ressrf/core.wasm
+            git commit -m "chore: rebuild core.wasm [ci]"
+            git push
           fi
 
   test-go:
+    needs: [build-wasm]
     name: Test Go (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -120,6 +125,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           persist-credentials: false
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.2
         with:
@@ -133,6 +139,7 @@ jobs:
         run: go vet ./...
 
   lint-go:
+    needs: [build-wasm]
     name: Lint Go
     runs-on: ubuntu-latest
     permissions:
@@ -140,6 +147,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           persist-credentials: false
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.2
         with:
