@@ -25,6 +25,7 @@ fn error_to_py(err: Error) -> PyErr {
         }
         Error::Parse(detail) => PyValueError::new_err(format!("parse error: {detail}")),
         Error::DnsError(detail) => PyValueError::new_err(format!("DNS error: {detail}")),
+        Error::Config(detail) => PyValueError::new_err(format!("config error: {detail}")),
         Error::PolicyFinalized => PyValueError::new_err("policy already finalized"),
     }
 }

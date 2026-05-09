@@ -1,0 +1,64 @@
+name: Update IP Ranges
+
+on:
+  schedule:
+    - cron: "0 4 1 * *" # 04:00 UTC on the 1st of every month
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: update-ip-ranges
+  cancel-in-progress: true
+
+jobs:
+  update:
+    name: Fetch and update IP ranges
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create branch and push
+      pull-requests: write # open PR
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: true
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Run codegen script
+        run: python scripts/generate_ip_ranges.py
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet crates/ressrf-core/config/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate and test
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          python scripts/generate_ip_ranges.py --validate-only
+          rustup toolchain install stable --profile minimal
+          cargo test --workspace --all-features --locked
+
+      - name: Create branch and PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="chore/update-ip-ranges-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add crates/ressrf-core/config/
+          git commit -m "chore: update IP ranges from upstream sources"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "chore: update IP ranges ($(date +%Y-%m-%d))" \
+            --body "Automated monthly update of IANA special-purpose registries and cloud provider service IP ranges." \
+            --label "dependencies"

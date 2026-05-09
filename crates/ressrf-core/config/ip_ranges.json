@@ -5,64 +5,241 @@
     "https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml",
     "https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml"
   ],
-  "last_updated": "2025-05-01",
+  "last_updated": "2026-05-09",
   "tiers": {
     "iana_ipv4": {
       "description": "IANA IPv4 special-purpose ranges (Globally Reachable = False) plus infrastructure-only (Tier 1b)",
       "entries": [
-        { "cidr": "0.0.0.0/8", "rfc": "RFC 791", "name": "This network" },
-        { "cidr": "10.0.0.0/8", "rfc": "RFC 1918", "name": "Private-Use" },
-        { "cidr": "100.64.0.0/10", "rfc": "RFC 6598", "name": "Shared Address Space / CGNAT" },
-        { "cidr": "127.0.0.0/8", "rfc": "RFC 1122", "name": "Loopback" },
-        { "cidr": "169.254.0.0/16", "rfc": "RFC 3927", "name": "Link-Local" },
-        { "cidr": "172.16.0.0/12", "rfc": "RFC 1918", "name": "Private-Use" },
-        { "cidr": "192.0.0.0/24", "rfc": "RFC 6890", "name": "IETF Protocol Assignments" },
-        { "cidr": "192.0.2.0/24", "rfc": "RFC 5737", "name": "Documentation TEST-NET-1" },
-        { "cidr": "192.31.196.0/24", "rfc": "RFC 7535", "name": "AS112-v4 [Tier 1b]" },
-        { "cidr": "192.52.193.0/24", "rfc": "RFC 7450", "name": "AMT [Tier 1b]" },
-        { "cidr": "192.88.99.0/24", "rfc": "RFC 7526", "name": "Deprecated 6to4 relay anycast" },
-        { "cidr": "192.168.0.0/16", "rfc": "RFC 1918", "name": "Private-Use" },
-        { "cidr": "192.175.48.0/24", "rfc": "RFC 7534", "name": "Direct Delegation AS112 [Tier 1b]" },
-        { "cidr": "198.18.0.0/15", "rfc": "RFC 2544", "name": "Benchmarking" },
-        { "cidr": "198.51.100.0/24", "rfc": "RFC 5737", "name": "Documentation TEST-NET-2" },
-        { "cidr": "203.0.113.0/24", "rfc": "RFC 5737", "name": "Documentation TEST-NET-3" },
-        { "cidr": "224.0.0.0/4", "rfc": "RFC 5771", "name": "Multicast" },
-        { "cidr": "240.0.0.0/4", "rfc": "RFC 1112", "name": "Reserved" },
-        { "cidr": "255.255.255.255/32", "rfc": "RFC 919", "name": "Limited Broadcast" }
+        {
+          "cidr": "0.0.0.0/8",
+          "rfc": "RFC791",
+          "name": "This network"
+        },
+        {
+          "cidr": "10.0.0.0/8",
+          "rfc": "RFC1918",
+          "name": "Private-Use"
+        },
+        {
+          "cidr": "100.64.0.0/10",
+          "rfc": "RFC6598",
+          "name": "Shared Address Space"
+        },
+        {
+          "cidr": "127.0.0.0/8",
+          "rfc": "RFC1122",
+          "name": "Loopback"
+        },
+        {
+          "cidr": "169.254.0.0/16",
+          "rfc": "RFC3927",
+          "name": "Link Local"
+        },
+        {
+          "cidr": "172.16.0.0/12",
+          "rfc": "RFC1918",
+          "name": "Private-Use"
+        },
+        {
+          "cidr": "192.0.0.0/24",
+          "rfc": "RFC6890",
+          "name": "IETF Protocol Assignments"
+        },
+        {
+          "cidr": "192.0.0.0/29",
+          "rfc": "RFC7335",
+          "name": "IPv4 Service Continuity Prefix"
+        },
+        {
+          "cidr": "192.0.0.8/32",
+          "rfc": "RFC7600",
+          "name": "IPv4 dummy address"
+        },
+        {
+          "cidr": "192.0.0.170/32",
+          "rfc": "RFC8880",
+          "name": "NAT64/DNS64 Discovery"
+        },
+        {
+          "cidr": "192.0.2.0/24",
+          "rfc": "RFC5737",
+          "name": "Documentation (TEST-NET-1)"
+        },
+        {
+          "cidr": "192.31.196.0/24",
+          "rfc": "RFC7535",
+          "name": "AS112-v4 [Tier 1b]"
+        },
+        {
+          "cidr": "192.52.193.0/24",
+          "rfc": "RFC7450",
+          "name": "AMT [Tier 1b]"
+        },
+        {
+          "cidr": "192.88.99.0/24",
+          "rfc": "RFC7526",
+          "name": "Deprecated (6to4 Relay Anycast) [Tier 1b]"
+        },
+        {
+          "cidr": "192.88.99.2/32",
+          "rfc": "RFC6751",
+          "name": "6a44-relay anycast address"
+        },
+        {
+          "cidr": "192.168.0.0/16",
+          "rfc": "RFC1918",
+          "name": "Private-Use"
+        },
+        {
+          "cidr": "192.175.48.0/24",
+          "rfc": "RFC7534",
+          "name": "Direct Delegation AS112 Service [Tier 1b]"
+        },
+        {
+          "cidr": "198.18.0.0/15",
+          "rfc": "RFC2544",
+          "name": "Benchmarking"
+        },
+        {
+          "cidr": "198.51.100.0/24",
+          "rfc": "RFC5737",
+          "name": "Documentation (TEST-NET-2)"
+        },
+        {
+          "cidr": "203.0.113.0/24",
+          "rfc": "RFC5737",
+          "name": "Documentation (TEST-NET-3)"
+        },
+        {
+          "cidr": "224.0.0.0/4",
+          "rfc": "RFC5771",
+          "name": "Multicast"
+        },
+        {
+          "cidr": "240.0.0.0/4",
+          "rfc": "RFC1112",
+          "name": "Reserved"
+        },
+        {
+          "cidr": "255.255.255.255/32",
+          "rfc": "RFC919",
+          "name": "Limited Broadcast"
+        }
       ]
     },
     "iana_ipv6": {
       "description": "IANA IPv6 special-purpose ranges (Globally Reachable = False)",
       "entries": [
-        { "cidr": "::1/128", "rfc": "RFC 4291", "name": "Loopback" },
-        { "cidr": "::/128", "rfc": "RFC 4291", "name": "Unspecified" },
-        { "cidr": "64:ff9b:1::/48", "rfc": "RFC 8215", "name": "IPv4-IPv6 Translation local-use" },
-        { "cidr": "100::/64", "rfc": "RFC 6666", "name": "Discard-Only" },
-        { "cidr": "100:0:0:1::/64", "rfc": "RFC 9780", "name": "Dummy IPv6 Prefix" },
-        { "cidr": "2001:db8::/32", "rfc": "RFC 3849", "name": "Documentation" },
-        { "cidr": "2001:2::/48", "rfc": "RFC 5180", "name": "Benchmarking" },
-        { "cidr": "3fff::/20", "rfc": "RFC 9637", "name": "Documentation" },
-        { "cidr": "5f00::/16", "rfc": "RFC 9602", "name": "Segment Routing SRv6 SIDs" },
-        { "cidr": "fc00::/7", "rfc": "RFC 4193", "name": "Unique-Local" },
-        { "cidr": "fe80::/10", "rfc": "RFC 4291", "name": "Link-Local Unicast" },
-        { "cidr": "ff00::/8", "rfc": "RFC 4291", "name": "Multicast" }
+        {
+          "cidr": "::1/128",
+          "rfc": "RFC4291",
+          "name": "Loopback Address"
+        },
+        {
+          "cidr": "::/128",
+          "rfc": "RFC4291",
+          "name": "Unspecified Address"
+        },
+        {
+          "cidr": "64:ff9b:1::/48",
+          "rfc": "RFC8215",
+          "name": "IPv4-IPv6 Translat."
+        },
+        {
+          "cidr": "100::/64",
+          "rfc": "RFC6666",
+          "name": "Discard-Only Address Block"
+        },
+        {
+          "cidr": "100:0:0:1::/64",
+          "rfc": "RFC9780",
+          "name": "Dummy IPv6 Prefix"
+        },
+        {
+          "cidr": "2001:2::/48",
+          "rfc": "RFC5180",
+          "name": "Benchmarking"
+        },
+        {
+          "cidr": "2001:3::/32",
+          "rfc": "RFC7450",
+          "name": "AMT [Tier 1b]"
+        },
+        {
+          "cidr": "2001:db8::/32",
+          "rfc": "RFC3849",
+          "name": "Documentation"
+        },
+        {
+          "cidr": "3fff::/20",
+          "rfc": "RFC9637",
+          "name": "Documentation"
+        },
+        {
+          "cidr": "5f00::/16",
+          "rfc": "RFC9602",
+          "name": "Segment Routing (SRv6) SIDs"
+        },
+        {
+          "cidr": "fc00::/7",
+          "rfc": "RFC4193",
+          "name": "Unique-Local"
+        },
+        {
+          "cidr": "fe80::/10",
+          "rfc": "RFC4291",
+          "name": "Link-Local Unicast"
+        },
+        {
+          "cidr": "ff00::/8",
+          "rfc": "RFC4291",
+          "name": "Multicast"
+        }
       ]
     },
     "override": {
       "description": "Tier 1c: ranges wrapping attacker-controlled IPv4 inside IPv6 (6to4, Teredo, NAT64)",
       "entries": [
-        { "cidr": "2002::/16", "rfc": "RFC 3056", "name": "6to4 (wraps arbitrary IPv4)" },
-        { "cidr": "2001::/32", "rfc": "RFC 4380", "name": "Teredo (wraps arbitrary IPv4)" },
-        { "cidr": "64:ff9b::/96", "rfc": "RFC 6052", "name": "NAT64 well-known prefix" }
+        {
+          "cidr": "2002::/16",
+          "rfc": "RFC3056",
+          "name": "6to4 (wraps arbitrary IPv4)"
+        },
+        {
+          "cidr": "2001::/32",
+          "rfc": "RFC4380",
+          "name": "Teredo (wraps arbitrary IPv4)"
+        },
+        {
+          "cidr": "64:ff9b::/96",
+          "rfc": "RFC6052",
+          "name": "NAT64 well-known prefix"
+        }
       ]
     },
     "csp_metadata": {
       "description": "Tier 2: Cloud provider metadata endpoints",
       "entries": [
-        { "cidr": "169.254.169.254/32", "rfc": null, "name": "AWS/Azure/GCP IMDS" },
-        { "cidr": "169.254.170.2/32", "rfc": null, "name": "AWS ECS task metadata" },
-        { "cidr": "168.63.129.16/32", "rfc": null, "name": "Azure Wireserver / DHCP" },
-        { "cidr": "fd00:ec2::254/128", "rfc": null, "name": "AWS IMDSv2 IPv6" }
+        {
+          "cidr": "169.254.169.254/32",
+          "rfc": null,
+          "name": "AWS/Azure/GCP IMDS"
+        },
+        {
+          "cidr": "169.254.170.2/32",
+          "rfc": null,
+          "name": "AWS ECS task metadata"
+        },
+        {
+          "cidr": "168.63.129.16/32",
+          "rfc": null,
+          "name": "Azure Wireserver / DHCP"
+        },
+        {
+          "cidr": "fd00:ec2::254/128",
+          "rfc": null,
+          "name": "AWS IMDSv2 IPv6"
+        }
       ]
     }
   }

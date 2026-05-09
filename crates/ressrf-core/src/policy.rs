@@ -52,6 +52,8 @@ pub struct PolicyBuilder {
     protocol_rules: ProtocolRules,
     cloud_modules: Vec<String>,
     audit_sink: Option<Box<dyn AuditSink>>,
+    #[cfg(feature = "std")]
+    service_ranges: Option<crate::service_ranges::ServiceRangeTable>,
 }
 
 impl core::fmt::Debug for PolicyBuilder {
@@ -76,6 +78,8 @@ impl PolicyBuilder {
             protocol_rules: ProtocolRules::default(),
             cloud_modules: Vec::new(),
             audit_sink: None,
+            #[cfg(feature = "std")]
+            service_ranges: None,
         }
     }
 
@@ -155,6 +159,20 @@ impl PolicyBuilder {
         self
     }
 
+    /// Attach a [`ServiceRangeTable`](crate::service_ranges::ServiceRangeTable)
+    /// for optional allow-listing decisions based on cloud service IP ranges.
+    ///
+    /// When present, [`Policy::lookup_service`] can identify which cloud service
+    /// owns an IP. This is opt-in and does not affect the default deny-list behavior.
+    #[cfg(feature = "std")]
+    pub fn with_service_ranges(
+        &mut self,
+        table: crate::service_ranges::ServiceRangeTable,
+    ) -> &mut Self {
+        self.service_ranges = Some(table);
+        self
+    }
+
     /// Build the immutable policy. After this, no further modifications are possible.
     pub fn build(mut self) -> Policy {
         // Load default deny set for ExternalOnly preset.
@@ -179,6 +197,8 @@ impl PolicyBuilder {
             protocol_rules: self.protocol_rules,
             cloud_modules: self.cloud_modules.clone(),
             audit_sink: self.audit_sink,
+            #[cfg(feature = "std")]
+            service_ranges: self.service_ranges,
         };
 
         // Emit PolicyCreated audit event
@@ -202,6 +222,8 @@ pub struct Policy {
     protocol_rules: ProtocolRules,
     cloud_modules: Vec<String>,
     audit_sink: Option<Box<dyn AuditSink>>,
+    #[cfg(feature = "std")]
+    service_ranges: Option<crate::service_ranges::ServiceRangeTable>,
 }
 
 impl core::fmt::Debug for Policy {
@@ -331,6 +353,17 @@ impl Policy {
     #[must_use]
     pub fn protocol_rules(&self) -> &ProtocolRules {
         &self.protocol_rules
+    }
+
+    /// Look up which cloud service owns an IP address, if a
+    /// [`ServiceRangeTable`](crate::service_ranges::ServiceRangeTable) was attached.
+    ///
+    /// Returns `None` when no table is configured or the IP is not in any
+    /// known service range.
+    #[cfg(feature = "std")]
+    #[must_use]
+    pub fn lookup_service(&self, addr: IpAddr) -> Option<&crate::service_ranges::ServiceInfo> {
+        self.service_ranges.as_ref()?.lookup(addr)
     }
 
     /// Emit an audit event if a sink is configured.
