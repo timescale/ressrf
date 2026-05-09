@@ -19,6 +19,9 @@ pub enum Error {
     /// DNS resolution failed.
     DnsError(String),
 
+    /// Configuration file could not be loaded or parsed.
+    Config(String),
+
     /// Policy was already finalized; mutation rejected.
     PolicyFinalized,
 }
@@ -44,6 +47,7 @@ impl fmt::Display for Error {
             Self::Blocked(reason) => write!(f, "blocked: {reason}"),
             Self::Parse(detail) => write!(f, "parse error: {detail}"),
             Self::DnsError(detail) => write!(f, "DNS error: {detail}"),
+            Self::Config(detail) => write!(f, "config error: {detail}"),
             Self::PolicyFinalized => write!(f, "policy already finalized"),
         }
     }

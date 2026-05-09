@@ -1047,6 +1047,8 @@ name = "ressrf-core"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "ipnet",
+ "prefix-trie",
  "serde",
  "serde_json",
 ]
