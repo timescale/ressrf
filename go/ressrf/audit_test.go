@@ -1,21 +1,17 @@
 package ressrf
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"log/slog"
-	"strings"
+	"sync"
 	"testing"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
-func TestSlogSinkEmitsEvent(t *testing.T) {
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, nil))
-	sink := &SlogSink{Logger: logger}
+func TestAuditFuncReceivesEvent(t *testing.T) {
+	var captured *AuditEvent
+	sink := AuditFunc(func(_ context.Context, e *AuditEvent) {
+		captured = e
+	})
 
 	event := &AuditEvent{
 		Kind:   "request_blocked",
@@ -23,63 +19,56 @@ func TestSlogSinkEmitsEvent(t *testing.T) {
 	}
 	sink.Emit(context.Background(), event)
 
-	output := buf.String()
-	if !strings.Contains(output, "ressrf.audit") {
-		t.Fatalf("expected log message to contain 'ressrf.audit', got: %s", output)
+	if captured == nil {
+		t.Fatal("AuditFunc did not receive event")
 	}
-	if !strings.Contains(output, "request_blocked") {
-		t.Fatalf("expected log to contain event kind, got: %s", output)
+	if captured.Kind != "request_blocked" {
+		t.Fatalf("expected kind 'request_blocked', got %q", captured.Kind)
 	}
-	if !strings.Contains(output, "10.0.0.1") {
-		t.Fatalf("expected log to contain fields, got: %s", output)
+	if string(captured.Fields) != `{"url":"http://10.0.0.1"}` {
+		t.Fatalf("unexpected fields: %s", string(captured.Fields))
 	}
 }
 
-func TestZapSinkEmitsEvent(t *testing.T) {
-	var buf bytes.Buffer
-	encoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
-	core := zapcore.NewCore(encoder, zapcore.AddSync(&buf), zapcore.InfoLevel)
-	logger := zap.New(core)
+func TestAuditFuncNilFields(t *testing.T) {
+	var captured *AuditEvent
+	sink := AuditFunc(func(_ context.Context, e *AuditEvent) {
+		captured = e
+	})
 
-	sink := &ZapSink{Logger: logger}
-
-	event := &AuditEvent{
-		Kind:   "policy_created",
-		Fields: json.RawMessage(`{"preset":"external_only"}`),
-	}
+	event := &AuditEvent{Kind: "policy_created"}
 	sink.Emit(context.Background(), event)
-	_ = logger.Sync()
 
-	output := buf.String()
-	if !strings.Contains(output, "ressrf.audit") {
-		t.Fatalf("expected zap log to contain 'ressrf.audit', got: %s", output)
+	if captured == nil {
+		t.Fatal("AuditFunc did not receive event")
 	}
-	if !strings.Contains(output, "policy_created") {
-		t.Fatalf("expected zap log to contain event kind, got: %s", output)
+	if captured.Fields != nil {
+		t.Fatalf("expected nil fields, got: %s", string(captured.Fields))
 	}
 }
 
 func TestMultiSinkFansOut(t *testing.T) {
-	var buf1, buf2 bytes.Buffer
-	logger1 := slog.New(slog.NewJSONHandler(&buf1, nil))
-	logger2 := slog.New(slog.NewJSONHandler(&buf2, nil))
+	var count1, count2 int
+	sink1 := AuditFunc(func(_ context.Context, _ *AuditEvent) { count1++ })
+	sink2 := AuditFunc(func(_ context.Context, _ *AuditEvent) { count2++ })
 
-	multi := MultiSink{
-		&SlogSink{Logger: logger1},
-		&SlogSink{Logger: logger2},
-	}
+	multi := MultiSink{sink1, sink2}
 
-	event := &AuditEvent{
-		Kind: "test_event",
-	}
+	event := &AuditEvent{Kind: "test_event"}
 	multi.Emit(context.Background(), event)
 
-	if !strings.Contains(buf1.String(), "test_event") {
-		t.Fatal("sink1 did not receive event")
+	if count1 != 1 {
+		t.Fatalf("sink1 expected 1 call, got %d", count1)
 	}
-	if !strings.Contains(buf2.String(), "test_event") {
-		t.Fatal("sink2 did not receive event")
+	if count2 != 1 {
+		t.Fatalf("sink2 expected 1 call, got %d", count2)
 	}
+}
+
+func TestMultiSinkEmpty(t *testing.T) {
+	multi := MultiSink{}
+	event := &AuditEvent{Kind: "no_panic"}
+	multi.Emit(context.Background(), event)
 }
 
 func TestDiscardSinkDoesNotPanic(t *testing.T) {
@@ -88,19 +77,32 @@ func TestDiscardSinkDoesNotPanic(t *testing.T) {
 	sink.Emit(context.Background(), event)
 }
 
-func TestSlogSinkNilFields(t *testing.T) {
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, nil))
-	sink := &SlogSink{Logger: logger}
+func TestAuditFuncConcurrent(t *testing.T) {
+	var mu sync.Mutex
+	var events []*AuditEvent
 
-	event := &AuditEvent{
-		Kind:   "event_no_fields",
-		Fields: nil,
+	sink := AuditFunc(func(_ context.Context, e *AuditEvent) {
+		mu.Lock()
+		events = append(events, e)
+		mu.Unlock()
+	})
+
+	var wg sync.WaitGroup
+	for i := range 100 {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			sink.Emit(context.Background(), &AuditEvent{Kind: "concurrent"})
+			_ = n
+		}(i)
 	}
-	sink.Emit(context.Background(), event)
+	wg.Wait()
 
-	output := buf.String()
-	if !strings.Contains(output, "event_no_fields") {
-		t.Fatalf("expected log to contain event kind, got: %s", output)
+	mu.Lock()
+	count := len(events)
+	mu.Unlock()
+
+	if count != 100 {
+		t.Fatalf("expected 100 events, got %d", count)
 	}
 }
