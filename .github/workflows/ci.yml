@@ -157,3 +157,52 @@ jobs:
         with:
           version: latest
           working-directory: go/ressrf
+
+  test-python:
+    name: Test Python (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182 # v5.4.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: python/uv.lock
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: python
+      - name: Install and test
+        working-directory: python
+        run: |
+          uv venv
+          uv pip install maturin pytest
+          uv run maturin develop
+          uv run pytest tests/ -v
+
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182 # v5.4.1
+      - name: Ruff format check
+        working-directory: python
+        run: uvx ruff format --check .
+      - name: Ruff lint
+        working-directory: python
+        run: uvx ruff check .
+      - name: Type check (ty)
+        working-directory: python
+        run: uvx ty check
