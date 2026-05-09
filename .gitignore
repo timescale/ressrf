@@ -29,10 +29,5 @@ __pycache__/
 node/node_modules/
 node/dist/
 
-# Go
-go/ressrf/core.wasm
-
-# WASM build artifacts
+# WASM build artifacts (built via go generate / npm run build)
 *.wasm
-!go/ressrf/core.wasm
-!node/core.wasm
