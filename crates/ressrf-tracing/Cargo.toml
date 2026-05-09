@@ -1,0 +1,16 @@
+[package]
+name = "ressrf-tracing"
+description = "TracingSink audit adapter for ressrf-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ressrf-core = { workspace = true, features = ["std"] }
+tracing = { workspace = true }

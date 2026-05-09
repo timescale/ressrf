@@ -1,0 +1,26 @@
+[package]
+name = "ressrf-http"
+description = "HTTP protocol integration with Tower Layer, DNS-pinned resolver, and redirect interceptor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ressrf-core = { workspace = true, features = ["std"] }
+ressrf-tcp = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+http = "1"
+tower-service = "0.3"
+tower-layer = "0.3"
+pin-project-lite = "0.2"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

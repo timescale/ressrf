@@ -1,0 +1,23 @@
+[package]
+name = "ressrf-tcp"
+description = "Async TCP guard with DNS-pinned dialing for SSRF prevention"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ressrf-core = { workspace = true, features = ["std"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
