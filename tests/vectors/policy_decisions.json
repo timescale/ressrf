@@ -181,6 +181,38 @@
       "ips": ["fd00:ec2::254"],
       "expected": "blocked",
       "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "ipv4_multicast_blocked",
+      "preset": "external_only",
+      "ips": ["224.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4 multicast (RFC 5771)"
+    },
+    {
+      "name": "ipv6_multicast_blocked",
+      "preset": "external_only",
+      "ips": ["ff02::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv6 multicast (RFC 4291)"
+    },
+    {
+      "name": "srv6_sid_blocked",
+      "preset": "external_only",
+      "ips": ["5f00::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "Segment Routing SRv6 SIDs (RFC 9602)"
+    },
+    {
+      "name": "ipv6_documentation_rfc9637_blocked",
+      "preset": "external_only",
+      "ips": ["3fff::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv6 documentation range (RFC 9637)"
     }
   ]
 }
