@@ -140,6 +140,15 @@ impl PolicyBuilder {
         self
     }
 
+    /// Load a cloud provider module: adds its deny ranges to the policy.
+    ///
+    /// This method adds the provider's metadata endpoint IPs to the deny set.
+    /// For domain-level validation (denied/allowed suffixes), use
+    /// `UriValidator::with_cloud_provider` alongside this.
+    pub fn with_cloud(&mut self, provider: crate::cloud::CloudProvider) -> &mut Self {
+        self.with_cloud_deny(provider.name(), provider.deny_ranges())
+    }
+
     /// Set the audit sink.
     pub fn audit_sink(&mut self, sink: Box<dyn AuditSink>) -> &mut Self {
         self.audit_sink = Some(sink);

@@ -21,4 +21,4 @@ mod redirect;
 
 pub use error::HttpGuardError;
 pub use layer::{SsrfLayer, SsrfService};
-pub use redirect::RedirectPolicy;
+pub use redirect::{RedirectPolicy, RedirectValidator};

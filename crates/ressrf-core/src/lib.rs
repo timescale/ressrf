@@ -12,6 +12,7 @@ pub mod uri_validator;
 
 pub use audit::{AuditEvent, AuditSink};
 pub use cidr::Cidr;
+pub use cloud::CloudProvider;
 pub use error::{Error, Result};
 pub use policy::{Policy, PolicyBuilder, Preset};
 pub use uri_validator::UriValidator;
