@@ -1,0 +1,135 @@
+{
+  "description": "URL validation test vectors for the URI validator. Tests scheme, domain, bare IP, and bypass resistance.",
+  "cases": [
+    {
+      "name": "https_public_allowed",
+      "url": "https://example.com/path",
+      "expected": "allowed"
+    },
+    {
+      "name": "http_public_allowed",
+      "url": "http://example.com/path",
+      "expected": "allowed"
+    },
+    {
+      "name": "ws_allowed",
+      "url": "ws://example.com/socket",
+      "expected": "allowed"
+    },
+    {
+      "name": "wss_allowed",
+      "url": "wss://example.com/socket",
+      "expected": "allowed"
+    },
+    {
+      "name": "ftp_scheme_blocked",
+      "url": "ftp://example.com/file",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed"
+    },
+    {
+      "name": "gopher_scheme_blocked",
+      "url": "gopher://example.com/",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed"
+    },
+    {
+      "name": "ldap_scheme_blocked",
+      "url": "ldap://internal.corp/dc=corp",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed"
+    },
+    {
+      "name": "bare_ip_imds_blocked",
+      "url": "http://169.254.169.254/latest/meta-data/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "bare IP validated against policy before scheme check"
+    },
+    {
+      "name": "bare_ip_loopback_blocked",
+      "url": "http://127.0.0.1:8080/admin",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme"
+    },
+    {
+      "name": "bare_ip_private_blocked",
+      "url": "http://10.0.0.1/internal",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme"
+    },
+    {
+      "name": "bare_ipv6_loopback_blocked",
+      "url": "http://[::1]:8080/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme"
+    },
+    {
+      "name": "userinfo_bypass_percent40",
+      "url": "http://user:p%40ss@169.254.169.254/",
+      "expected": "blocked",
+      "reason_type": "userinfo_bypass_attempt",
+      "note": "URL-encoded @ in password could confuse host extraction"
+    },
+    {
+      "name": "userinfo_bypass_encoded_at_host",
+      "url": "http://foo%40bar@169.254.169.254/",
+      "expected": "blocked",
+      "reason_type": "userinfo_bypass_attempt"
+    },
+    {
+      "name": "double_dash_hostname_blocked",
+      "url": "https://foo--bar.example.com/",
+      "expected": "blocked",
+      "reason_type": "hostname_invalid",
+      "note": "non-punycode double-dash rejected for cloud validator hardening"
+    },
+    {
+      "name": "punycode_double_dash_allowed",
+      "url": "https://xn--nxasmq6b.example.com/",
+      "expected": "allowed",
+      "note": "xn-- punycode prefix is legitimate"
+    },
+    {
+      "name": "denied_suffix_internal",
+      "url": "http://db.internal/",
+      "denied_suffixes": [".internal"],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied"
+    },
+    {
+      "name": "denied_suffix_k8s",
+      "url": "http://api.default.svc.cluster.local/",
+      "denied_suffixes": [".svc.cluster.local"],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied"
+    },
+    {
+      "name": "trusted_domain_match",
+      "url": "https://api.example.com/v1/data",
+      "trusted_suffixes": ["example.com"],
+      "expected": "allowed"
+    },
+    {
+      "name": "trusted_domain_no_match",
+      "url": "https://evil.com/steal",
+      "trusted_suffixes": ["example.com"],
+      "expected": "blocked",
+      "reason_type": "domain_not_in_allow_list"
+    },
+    {
+      "name": "trusted_domain_boundary_no_match",
+      "url": "https://notexample.com/",
+      "trusted_suffixes": ["example.com"],
+      "expected": "blocked",
+      "reason_type": "domain_not_in_allow_list",
+      "note": "boundary-aware: notexample.com does not match suffix example.com"
+    },
+    {
+      "name": "empty_url_blocked",
+      "url": "",
+      "expected": "blocked",
+      "reason_type": "url_parse_error"
+    }
+  ]
+}

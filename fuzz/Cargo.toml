@@ -1,0 +1,28 @@
+[package]
+name = "ressrf-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+ressrf-core = { path = "../crates/ressrf-core" }
+arbitrary = { version = "1", features = ["derive"] }
+
+[[bin]]
+name = "fuzz_cidr"
+path = "fuzz_targets/fuzz_cidr.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_policy"
+path = "fuzz_targets/fuzz_policy.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_url_validator"
+path = "fuzz_targets/fuzz_url_validator.rs"
+doc = false
