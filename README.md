@@ -161,6 +161,58 @@ let validator = UriValidator::default();
 assert!(validator.validate_url("http://169.254.169.254/", Some(&policy)).is_err());
 ```
 
+## Allow Lists
+
+The policy engine uses a deny-first model, but you can punch holes for specific CIDRs that would otherwise be blocked. Allow overrides deny, so you can permit access to a known-safe internal service while keeping the rest of private address space blocked.
+
+### Rust
+
+```rust
+use ressrf_core::{PolicyBuilder, Preset};
+
+let policy = PolicyBuilder::external_only()
+    .add_allowed(&["10.42.0.0/16"])  // internal k8s service range
+    .build();
+
+// 10.42.1.5 is now allowed despite being in RFC1918 space
+assert!(policy.is_network_allowed(&["10.42.1.5".parse().unwrap()]).is_ok());
+
+// Other private IPs are still blocked
+assert!(policy.is_network_allowed(&["10.0.0.1".parse().unwrap()]).is_err());
+```
+
+### Go
+
+```go
+policy, _ := ressrf.NewPolicyBuilder(ressrf.PresetExternalOnly).
+    WithAllowedCIDRs("10.42.0.0/16").
+    Build(ctx)
+```
+
+### Python
+
+```python
+policy = Policy.external_only(allowed=["10.42.0.0/16"])
+
+# or with the builder
+policy = (
+    PolicyBuilder("external_only")
+    .add_allowed(["10.42.0.0/16"])
+    .build()
+)
+```
+
+### Node.js
+
+```typescript
+const policy = await Policy.externalOnly({ allowCidrs: ["10.42.0.0/16"] });
+
+// or with the builder
+const policy = await new PolicyBuilder("external_only")
+  .addAllowed("10.42.0.0/16")
+  .build();
+```
+
 ## Installation
 
 ### Go
