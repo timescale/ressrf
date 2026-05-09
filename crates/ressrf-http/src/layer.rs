@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use pin_project_lite::pin_project;
 use ressrf_core::Policy;
 use tower_layer::Layer;
 use tower_service::Service;
@@ -78,7 +79,7 @@ where
 {
     type Response = S::Response;
     type Error = crate::HttpGuardError;
-    type Future = SsrfFuture<S, ReqBody>;
+    type Future = SsrfFuture<S::Future>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner
@@ -87,12 +88,11 @@ where
     }
 
     fn call(&mut self, req: http::Request<ReqBody>) -> Self::Future {
-        // Pre-flight validation: check scheme and host
         if let Err(e) = validate_request(&req, &self.policy) {
-            return SsrfFuture::error(e);
+            return SsrfFuture::rejected(e);
         }
 
-        SsrfFuture::inner(self.inner.call(req))
+        SsrfFuture::forwarded(self.inner.call(req))
     }
 }
 
@@ -103,7 +103,6 @@ fn validate_request<B>(
 ) -> Result<(), crate::HttpGuardError> {
     let uri = req.uri();
 
-    // Check scheme
     if let Some(scheme) = uri.scheme_str() {
         policy
             .validate_scheme(scheme)
@@ -112,7 +111,6 @@ fn validate_request<B>(
             })?;
     }
 
-    // Check host (pre-flight, IP literal only; DNS hosts are validated at connect time)
     let host = uri
         .host()
         .or_else(|| {
@@ -123,7 +121,6 @@ fn validate_request<B>(
         })
         .ok_or(crate::HttpGuardError::NoHost)?;
 
-    // If the host is an IP literal, validate immediately
     if let Ok(ip) = host.parse::<std::net::IpAddr>() {
         policy
             .is_network_allowed(&[ip])
@@ -135,43 +132,42 @@ fn validate_request<B>(
     Ok(())
 }
 
-/// Future type for the SSRF service.
-///
-/// Either immediately returns an error (if pre-flight validation failed)
-/// or delegates to the inner service's future.
-pub enum SsrfFuture<S: Service<http::Request<B>>, B> {
-    Error(Option<crate::HttpGuardError>),
-    Inner(S::Future),
-}
-
-impl<S, B> SsrfFuture<S, B>
-where
-    S: Service<http::Request<B>>,
-{
-    fn error(e: crate::HttpGuardError) -> Self {
-        Self::Error(Some(e))
-    }
-
-    fn inner(fut: S::Future) -> Self {
-        Self::Inner(fut)
+pin_project! {
+    /// Future type for the SSRF service.
+    ///
+    /// Either immediately returns an error (if pre-flight validation failed)
+    /// or delegates to the inner service's future with sound structural pinning.
+    #[project = SsrfFutureProj]
+    pub enum SsrfFuture<F> {
+        Rejected { error: Option<crate::HttpGuardError> },
+        Forwarded { #[pin] future: F },
     }
 }
 
-impl<S, B> std::future::Future for SsrfFuture<S, B>
+impl<F> SsrfFuture<F> {
+    fn rejected(e: crate::HttpGuardError) -> Self {
+        Self::Rejected { error: Some(e) }
+    }
+
+    fn forwarded(fut: F) -> Self {
+        Self::Forwarded { future: fut }
+    }
+}
+
+impl<F, T, E> std::future::Future for SsrfFuture<F>
 where
-    S: Service<http::Request<B>>,
-    S::Error: std::error::Error + Send + Sync + 'static,
+    F: std::future::Future<Output = Result<T, E>>,
+    E: std::error::Error + Send + Sync + 'static,
 {
-    type Output = Result<S::Response, crate::HttpGuardError>;
+    type Output = Result<T, crate::HttpGuardError>;
 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // Safety: we never move the inner future after pinning
-        match unsafe { self.get_unchecked_mut() } {
-            Self::Error(e) => Poll::Ready(Err(e.take().expect("polled after completion"))),
-            Self::Inner(fut) => {
-                // Safety: inner future is structurally pinned
-                let pinned = unsafe { std::pin::Pin::new_unchecked(fut) };
-                pinned.poll(cx).map_err(crate::HttpGuardError::inner)
+        match self.project() {
+            SsrfFutureProj::Rejected { error } => {
+                Poll::Ready(Err(error.take().expect("polled after completion")))
+            }
+            SsrfFutureProj::Forwarded { future } => {
+                future.poll(cx).map_err(crate::HttpGuardError::inner)
             }
         }
     }

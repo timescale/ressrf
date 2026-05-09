@@ -105,16 +105,24 @@ struct WasmResult {
 
 /// Allocate `size` bytes in WASM linear memory. Returns a pointer the host
 /// can write to before calling other exported functions.
+/// Returns null if size is 0.
 #[unsafe(no_mangle)]
 pub extern "C" fn ressrf_alloc(size: u32) -> *mut u8 {
+    if size == 0 {
+        return core::ptr::null_mut();
+    }
     let layout = alloc::alloc::Layout::from_size_align(size as usize, 1).unwrap();
-    // Safety: layout is valid (size > 0 enforced by caller convention)
+    // Safety: layout has non-zero size
     unsafe { alloc::alloc::alloc(layout) }
 }
 
 /// Deallocate memory previously allocated by `ressrf_alloc`.
+/// No-op if ptr is null or size is 0.
 #[unsafe(no_mangle)]
 pub extern "C" fn ressrf_dealloc(ptr: *mut u8, size: u32) {
+    if ptr.is_null() || size == 0 {
+        return;
+    }
     let layout = alloc::alloc::Layout::from_size_align(size as usize, 1).unwrap();
     // Safety: ptr was allocated by ressrf_alloc with this layout
     unsafe { alloc::alloc::dealloc(ptr, layout) };
@@ -215,13 +223,13 @@ pub extern "C" fn ressrf_policy_is_request_allowed(
     json_len: u32,
 ) -> *mut u8 {
     let result = (|| {
-        let _policy = get_policy(handle).ok_or("invalid policy handle")?;
+        let policy = get_policy(handle).ok_or("invalid policy handle")?;
         let json_bytes = unsafe { slice::from_raw_parts(json_ptr, json_len as usize) };
         let input: RequestCheckInput =
             serde_json::from_slice(json_bytes).map_err(|e| alloc::format!("parse error: {e}"))?;
 
         let validator = ressrf_core::UriValidator::default();
-        match validator.validate_url(&input.url, None) {
+        match validator.validate_url(&input.url, Some(policy)) {
             Ok(()) => Ok(WasmResult {
                 allowed: true,
                 error: None,
