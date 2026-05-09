@@ -296,6 +296,10 @@ The project runs comprehensive CI on every push and PR:
 - **Node.js:** node:test (multi-OS), tsc type check
 - **Security:** cargo audit, cargo fuzz (weekly), zizmor (Actions linting)
 
+## Contributing
+
+If you would like to see integration with your favorite programming language, cloud provider, protocol, or library, feel free to open an issue or submit a pull request. Contributions of all kinds are welcome.
+
 ## License
 
 MIT
