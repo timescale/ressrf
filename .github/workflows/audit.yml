@@ -20,6 +20,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   cargo-audit:
     name: cargo audit
