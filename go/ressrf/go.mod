@@ -1,8 +1,6 @@
 module github.com/mostafa/ressrf/go/ressrf
 
-go 1.25.0
-
-toolchain go1.25.5
+go 1.26.3
 
 require (
 	github.com/tetratelabs/wazero v1.11.0
