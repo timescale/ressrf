@@ -19,9 +19,10 @@ const (
 
 // PolicyConfig matches the WASM ABI's PolicyConfig input struct.
 type PolicyConfig struct {
-	Preset     string   `json:"preset"`
-	AllowCIDRs []string `json:"allow_cidrs,omitempty"`
-	DenyCIDRs  []string `json:"deny_cidrs,omitempty"`
+	Preset         string   `json:"preset"`
+	AllowCIDRs     []string `json:"allow_cidrs,omitempty"`
+	DenyCIDRs      []string `json:"deny_cidrs,omitempty"`
+	CloudProviders []string `json:"cloud_providers,omitempty"`
 }
 
 // Policy is a compiled SSRF policy backed by the WASM engine.
@@ -65,6 +66,13 @@ func (b *PolicyBuilder) WithAllowedCIDRs(cidrs ...string) *PolicyBuilder {
 // WithDeniedCIDRs adds CIDRs to the deny list.
 func (b *PolicyBuilder) WithDeniedCIDRs(cidrs ...string) *PolicyBuilder {
 	b.config.DenyCIDRs = append(b.config.DenyCIDRs, cidrs...)
+	return b
+}
+
+// WithCloudProviders adds cloud provider modules (e.g. "aws", "azure", "gcp")
+// whose metadata endpoint IPs and internal domains will be denied.
+func (b *PolicyBuilder) WithCloudProviders(providers ...string) *PolicyBuilder {
+	b.config.CloudProviders = append(b.config.CloudProviders, providers...)
 	return b
 }
 

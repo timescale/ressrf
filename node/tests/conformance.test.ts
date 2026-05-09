@@ -22,6 +22,7 @@ interface PolicyCase {
   reason_type?: string;
   allow?: string[];
   deny?: string[];
+  cloud_providers?: string[];
 }
 
 interface UrlCase {
@@ -46,6 +47,9 @@ describe("Conformance: Policy Decisions", () => {
       }
       if (c.deny) {
         builder.addDenied(...c.deny);
+      }
+      if (c.cloud_providers) {
+        builder.addCloud(...c.cloud_providers);
       }
 
       const policy = await builder.build();

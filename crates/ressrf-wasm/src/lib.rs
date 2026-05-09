@@ -32,7 +32,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::slice;
 
-use ressrf_core::{PolicyBuilder, Preset};
+use ressrf_core::{CloudProvider, PolicyBuilder, Preset};
 use serde::{Deserialize, Serialize};
 
 /// Opaque handle to a Policy instance stored on the heap.
@@ -74,6 +74,8 @@ struct PolicyConfig {
     allow_cidrs: Vec<String>,
     #[serde(default)]
     deny_cidrs: Vec<String>,
+    #[serde(default)]
+    cloud_providers: Vec<String>,
 }
 
 /// Input format for network validation.
@@ -156,6 +158,15 @@ pub extern "C" fn ressrf_policy_new(json_ptr: *const u8, json_len: u32) -> Polic
     let deny_refs: Vec<&str> = config.deny_cidrs.iter().map(String::as_str).collect();
     if !deny_refs.is_empty() {
         builder.add_denied(&deny_refs);
+    }
+
+    for name in &config.cloud_providers {
+        match name.as_str() {
+            "aws" => { builder.with_cloud(CloudProvider::Aws); }
+            "azure" => { builder.with_cloud(CloudProvider::Azure); }
+            "gcp" => { builder.with_cloud(CloudProvider::Gcp); }
+            _ => {}
+        }
     }
 
     #[allow(static_mut_refs)]
