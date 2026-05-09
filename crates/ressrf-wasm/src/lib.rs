@@ -162,9 +162,15 @@ pub extern "C" fn ressrf_policy_new(json_ptr: *const u8, json_len: u32) -> Polic
 
     for name in &config.cloud_providers {
         match name.as_str() {
-            "aws" => { builder.with_cloud(CloudProvider::Aws); }
-            "azure" => { builder.with_cloud(CloudProvider::Azure); }
-            "gcp" => { builder.with_cloud(CloudProvider::Gcp); }
+            "aws" => {
+                builder.with_cloud(CloudProvider::Aws);
+            }
+            "azure" => {
+                builder.with_cloud(CloudProvider::Azure);
+            }
+            "gcp" => {
+                builder.with_cloud(CloudProvider::Gcp);
+            }
             _ => {}
         }
     }
