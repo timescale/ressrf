@@ -9,6 +9,10 @@ pub mod aws;
 pub mod azure;
 pub mod gcp;
 
+#[cfg(test)]
+#[path = "tests.rs"]
+mod cloud_tests;
+
 /// Supported cloud providers for convenience loading.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CloudProvider {
