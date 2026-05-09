@@ -1,0 +1,32 @@
+[workspace]
+members = ["crates/ressrf-core"]
+exclude = ["fuzz"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+authors = ["Mostafa Moradian <mostafamoradian0@gmail.com>"]
+repository = "https://github.com/mostafa/ressrf"
+categories = ["network-programming", "web-programming"]
+keywords = ["ssrf", "security", "network", "validation"]
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+missing_const_for_fn = "allow"
+option_if_let_else = "allow"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
