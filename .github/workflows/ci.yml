@@ -100,14 +100,16 @@ jobs:
         run: cargo install wasm-tools --locked
       - name: Rebuild core.wasm
         run: bash go/ressrf/build_wasm.sh
+      - name: Copy core.wasm to node/
+        run: cp go/ressrf/core.wasm node/core.wasm
       - name: Commit if changed
         run: |
-          if git diff --quiet go/ressrf/core.wasm; then
+          if git diff --quiet go/ressrf/core.wasm node/core.wasm; then
             echo "core.wasm is up to date"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add go/ressrf/core.wasm
+            git add go/ressrf/core.wasm node/core.wasm
             git commit -m "chore: rebuild core.wasm [ci]"
             git push
           fi
@@ -206,3 +208,53 @@ jobs:
       - name: Type check (ty)
         working-directory: python
         run: uvx ty check
+
+  test-node:
+    needs: [build-wasm]
+    name: Test Node.js (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+      - name: Install
+        working-directory: node
+        run: npm ci
+      - name: Test
+        working-directory: node
+        run: npx tsx --test tests/*.test.ts
+
+  lint-node:
+    needs: [build-wasm]
+    name: Lint Node.js
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+      - name: Install
+        working-directory: node
+        run: npm ci
+      - name: Type check
+        working-directory: node
+        run: npx tsc --noEmit

@@ -1,0 +1,45 @@
+{
+  "name": "ressrf",
+  "version": "0.1.0",
+  "description": "SSRF prevention library powered by a WASM policy engine",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "core.wasm"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:wasm": "bash ../go/ressrf/build_wasm.sh && cp ../go/ressrf/core.wasm core.wasm",
+    "lint": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "pretest": "npm run build:wasm"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "@types/node": "^25.6.2",
+    "@types/ssh2": "^1.15.5"
+  },
+  "peerDependencies": {
+    "undici": ">=8.2.0",
+    "ssh2": ">=1.17.0"
+  },
+  "peerDependenciesMeta": {
+    "undici": {
+      "optional": true
+    },
+    "ssh2": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
