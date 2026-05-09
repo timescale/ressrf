@@ -1,0 +1,167 @@
+{
+  "description": "Test vectors for audit event generation. Each case describes an action and the expected audit event variant and fields.",
+  "test_cases": [
+    {
+      "name": "policy_created_external_only",
+      "action": "create_policy",
+      "config": {
+        "preset": "external_only",
+        "cloud_modules": ["aws"]
+      },
+      "expected_event": {
+        "variant": "PolicyCreated",
+        "fields": {
+          "preset": "ExternalOnly",
+          "cloud_modules": ["aws"],
+          "deny_count_min": 30,
+          "allow_count": 0
+        }
+      }
+    },
+    {
+      "name": "host_validated_allowed",
+      "action": "validate_host",
+      "config": {
+        "preset": "external_only",
+        "host": "example.com",
+        "resolved_ips": ["93.184.216.34"]
+      },
+      "expected_event": {
+        "variant": "HostValidated",
+        "fields": {
+          "host": "example.com",
+          "allowed": true
+        }
+      }
+    },
+    {
+      "name": "host_validated_blocked_private",
+      "action": "validate_host",
+      "config": {
+        "preset": "external_only",
+        "host": "evil.internal",
+        "resolved_ips": ["10.0.0.1"]
+      },
+      "expected_event": {
+        "variant": "HostValidated",
+        "fields": {
+          "host": "evil.internal",
+          "allowed": false,
+          "match_reason_contains": "10.0.0.0/8"
+        }
+      }
+    },
+    {
+      "name": "url_validated_allowed",
+      "action": "validate_url",
+      "config": {
+        "preset": "external_only",
+        "url": "https://api.example.com/v1/data"
+      },
+      "expected_event": {
+        "variant": "UrlValidated",
+        "fields": {
+          "url": "https://api.example.com/v1/data",
+          "host": "api.example.com",
+          "scheme": "https",
+          "allowed": true
+        }
+      }
+    },
+    {
+      "name": "url_validated_blocked_imds",
+      "action": "validate_url",
+      "config": {
+        "preset": "external_only",
+        "url": "http://169.254.169.254/latest/meta-data/"
+      },
+      "expected_event": {
+        "variant": "UrlValidated",
+        "fields": {
+          "url": "http://169.254.169.254/latest/meta-data/",
+          "host": "169.254.169.254",
+          "scheme": "http",
+          "allowed": false
+        }
+      }
+    },
+    {
+      "name": "connection_attempt_blocked_ssh",
+      "action": "connection_attempt",
+      "config": {
+        "preset": "external_only",
+        "protocol": "ssh",
+        "remote_addr": "10.0.0.5:22"
+      },
+      "expected_event": {
+        "variant": "ConnectionAttempt",
+        "fields": {
+          "protocol": "ssh",
+          "remote_addr": "10.0.0.5:22",
+          "allowed": false
+        }
+      }
+    },
+    {
+      "name": "connection_attempt_allowed_tcp",
+      "action": "connection_attempt",
+      "config": {
+        "preset": "external_only",
+        "protocol": "tcp",
+        "remote_addr": "93.184.216.34:443"
+      },
+      "expected_event": {
+        "variant": "ConnectionAttempt",
+        "fields": {
+          "protocol": "tcp",
+          "remote_addr": "93.184.216.34:443",
+          "allowed": true
+        }
+      }
+    },
+    {
+      "name": "redirect_intercepted_blocked",
+      "action": "redirect_intercepted",
+      "config": {
+        "preset": "external_only",
+        "from_url": "https://legit.com/api",
+        "to_url": "http://169.254.169.254/latest/"
+      },
+      "expected_event": {
+        "variant": "RedirectIntercepted",
+        "fields": {
+          "from_url": "https://legit.com/api",
+          "to_url": "http://169.254.169.254/latest/",
+          "allowed": false
+        }
+      }
+    },
+    {
+      "name": "redirect_intercepted_allowed",
+      "action": "redirect_intercepted",
+      "config": {
+        "preset": "external_only",
+        "from_url": "https://example.com/old",
+        "to_url": "https://example.org/new"
+      },
+      "expected_event": {
+        "variant": "RedirectIntercepted",
+        "fields": {
+          "from_url": "https://example.com/old",
+          "to_url": "https://example.org/new",
+          "allowed": true
+        }
+      }
+    },
+    {
+      "name": "no_event_when_no_sink",
+      "action": "create_policy",
+      "config": {
+        "preset": "external_only",
+        "audit_sink": null
+      },
+      "expected_event": null,
+      "note": "No audit event should be generated when no sink is configured"
+    }
+  ]
+}

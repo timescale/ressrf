@@ -1,0 +1,110 @@
+{
+  "description": "Test vectors for redirect chain validation. Each case specifies a chain of URLs and the expected outcome.",
+  "test_cases": [
+    {
+      "name": "simple_public_to_public_redirect",
+      "chain": ["https://example.com/start", "https://example.org/final"],
+      "policy_preset": "external_only",
+      "expected": "allowed"
+    },
+    {
+      "name": "public_to_private_ip_redirect",
+      "chain": ["https://attacker.com/redir", "http://10.0.0.1/admin"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "public_to_imds_redirect",
+      "chain": ["https://attacker.com/redir", "http://169.254.169.254/latest/meta-data/"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "multi_hop_to_internal",
+      "chain": [
+        "https://legit.com/a",
+        "https://legit.com/b",
+        "https://legit.com/c",
+        "http://192.168.1.1:8080/secret"
+      ],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 3,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "scheme_downgrade_https_to_http",
+      "chain": ["https://api.example.com/v1", "http://api.example.com/v1"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "plaintext_http_denied"
+    },
+    {
+      "name": "redirect_to_loopback_ipv6",
+      "chain": ["https://attacker.com/bounce", "http://[::1]:8080/internal"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "redirect_to_aws_ecs_metadata",
+      "chain": ["https://legit.com/webhook", "http://169.254.170.2/v2/metadata"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "redirect_to_azure_wireserver",
+      "chain": ["https://legit.com/callback", "http://168.63.129.16/machine?comp=goalstate"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "too_many_redirects",
+      "chain": [
+        "https://a.com/1", "https://b.com/2", "https://c.com/3",
+        "https://d.com/4", "https://e.com/5", "https://f.com/6",
+        "https://g.com/7", "https://h.com/8", "https://i.com/9",
+        "https://j.com/10", "https://k.com/11"
+      ],
+      "policy_preset": "external_only",
+      "max_redirects": 10,
+      "expected": "blocked",
+      "blocked_at_hop": 10,
+      "reason": "max_redirects_exceeded"
+    },
+    {
+      "name": "redirect_to_allowed_private_range",
+      "chain": ["https://public.example.com/start", "http://10.42.1.1:8080/api"],
+      "policy_preset": "external_only",
+      "allow_cidrs": ["10.42.0.0/16"],
+      "expected": "allowed",
+      "note": "Allow override permits the private range"
+    },
+    {
+      "name": "redirect_to_cgnat",
+      "chain": ["https://example.com/r", "http://100.64.0.1/internal"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "bare_ip_in_deny_range"
+    },
+    {
+      "name": "redirect_protocol_switch_to_ftp",
+      "chain": ["https://example.com/file", "ftp://files.internal/secret.zip"],
+      "policy_preset": "external_only",
+      "expected": "blocked",
+      "blocked_at_hop": 1,
+      "reason": "scheme_not_allowed"
+    }
+  ]
+}

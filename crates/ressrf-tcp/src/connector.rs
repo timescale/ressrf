@@ -7,6 +7,7 @@ use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tracing::{debug, instrument};
 
+use crate::dns::{DnsBackend, TokioDns};
 use crate::error::TcpGuardError;
 use crate::resolver::SafeResolver;
 
@@ -20,12 +21,12 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 /// DNS rebinding is eliminated because the resolved IP is connected to
 /// directly without re-resolution.
 #[derive(Clone)]
-pub struct SafeConnector {
-    resolver: SafeResolver,
+pub struct SafeConnector<D: DnsBackend = TokioDns> {
+    resolver: SafeResolver<D>,
     timeout: Duration,
 }
 
-impl SafeConnector {
+impl SafeConnector<TokioDns> {
     /// Create a connector with the given policy and default 30s timeout.
     pub fn new(policy: Policy) -> Self {
         Self {
@@ -41,9 +42,27 @@ impl SafeConnector {
             timeout,
         }
     }
+}
+
+impl<D: DnsBackend> SafeConnector<D> {
+    /// Create a connector with a custom DNS backend.
+    pub fn with_dns(policy: Policy, dns: D) -> Self {
+        Self {
+            resolver: SafeResolver::with_dns(Arc::new(policy), dns),
+            timeout: DEFAULT_TIMEOUT,
+        }
+    }
+
+    /// Create a connector with a custom DNS backend and timeout.
+    pub fn with_dns_and_timeout(policy: Policy, dns: D, timeout: Duration) -> Self {
+        Self {
+            resolver: SafeResolver::with_dns(Arc::new(policy), dns),
+            timeout,
+        }
+    }
 
     /// Get a reference to the underlying resolver.
-    pub fn resolver(&self) -> &SafeResolver {
+    pub fn resolver(&self) -> &SafeResolver<D> {
         &self.resolver
     }
 
@@ -56,16 +75,13 @@ impl SafeConnector {
     pub async fn connect(&self, host: &str, port: u16) -> Result<TcpStream, TcpGuardError> {
         let start = Instant::now();
 
-        // If the host is already an IP literal, validate it directly
         if let Ok(ip) = host.parse::<IpAddr>() {
             let addr = self.resolver.validate_ip(ip, port)?;
             return self.connect_addr(addr, start).await;
         }
 
-        // Resolve and validate
         let resolved = self.resolver.resolve(host, port).await?;
 
-        // Try each validated address in order
         let mut last_err = None;
         for addr in &resolved.addrs {
             match self.connect_addr(*addr, start).await {
@@ -124,7 +140,6 @@ fn elapsed_ms_saturating(start: Instant) -> u64 {
 
 /// Parse a "host:port" string, handling IPv6 bracket notation.
 fn parse_host_port(address: &str) -> Result<(&str, u16), TcpGuardError> {
-    // Handle [IPv6]:port
     if let Some(bracket_end) = address.rfind(']') {
         let host = address
             .get(1..bracket_end)
@@ -145,7 +160,6 @@ fn parse_host_port(address: &str) -> Result<(&str, u16), TcpGuardError> {
         return Ok((host, port));
     }
 
-    // Handle host:port (last colon is the separator)
     let colon_pos = address
         .rfind(':')
         .ok_or_else(|| TcpGuardError::InvalidAddress {

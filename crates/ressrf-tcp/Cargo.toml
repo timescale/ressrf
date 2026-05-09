@@ -13,11 +13,16 @@ keywords.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+hickory = ["hickory-resolver"]
+
 [dependencies]
 ressrf-core = { workspace = true, features = ["std"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
+hickory-resolver = { version = "0.26", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

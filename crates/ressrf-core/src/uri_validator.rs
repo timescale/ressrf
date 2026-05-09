@@ -61,6 +61,16 @@ impl UriValidator {
         self
     }
 
+    /// Load domain suffixes from a cloud provider module.
+    ///
+    /// Adds the provider's internal DNS suffixes to the denied list and its
+    /// service domain suffixes to the trusted list.
+    pub fn with_cloud_provider(&mut self, provider: crate::cloud::CloudProvider) -> &mut Self {
+        self.add_denied_suffixes(provider.denied_domain_suffixes());
+        self.add_trusted_suffixes(provider.service_domain_suffixes());
+        self
+    }
+
     /// Validate a URL string. Returns Ok(()) if it passes all checks.
     ///
     /// Checks performed:

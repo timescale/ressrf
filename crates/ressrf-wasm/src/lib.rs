@@ -158,6 +158,12 @@ pub extern "C" fn ressrf_policy_new(json_ptr: *const u8, json_len: u32) -> Polic
         builder.add_denied(&deny_refs);
     }
 
+    #[allow(static_mut_refs)]
+    let audit_enabled = unsafe { AUDIT_ENABLED };
+    if audit_enabled {
+        builder.audit_sink(alloc::boxed::Box::new(WasmAuditSink));
+    }
+
     let policy = builder.build();
     store_policy(policy)
 }
@@ -287,6 +293,43 @@ pub extern "C" fn ressrf_uri_in_domain(json_ptr: *const u8, json_len: u32) -> *m
     };
 
     serialize_result(&wasm_result)
+}
+
+// --- Audit callback support ---
+
+extern "C" {
+    /// Host-provided function called when an audit event is emitted.
+    /// The guest writes a length-prefixed JSON string to linear memory and
+    /// passes the pointer and total length. The host reads and frees it.
+    fn ressrf_host_audit_event(ptr: *const u8, len: u32);
+}
+
+/// Global flag: whether audit callbacks are enabled.
+static mut AUDIT_ENABLED: bool = false;
+
+/// Enable audit event callbacks. After calling this, newly created policies
+/// will have a `WasmAuditSink` attached that calls the host-imported
+/// `ressrf_host_audit_event` function with JSON-serialized events.
+#[unsafe(no_mangle)]
+pub extern "C" fn ressrf_policy_set_audit_callback(enabled: u32) {
+    #[allow(static_mut_refs)]
+    unsafe {
+        AUDIT_ENABLED = enabled != 0;
+    }
+}
+
+/// Audit sink that calls the host-imported function.
+struct WasmAuditSink;
+
+impl ressrf_core::AuditSink for WasmAuditSink {
+    fn emit(&self, event: &ressrf_core::audit::AuditEvent) {
+        let Ok(json) = serde_json::to_vec(event) else {
+            return;
+        };
+        unsafe {
+            ressrf_host_audit_event(json.as_ptr(), json.len() as u32);
+        }
+    }
 }
 
 /// Serialize a result to a length-prefixed buffer in linear memory.
