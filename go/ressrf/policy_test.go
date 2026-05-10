@@ -226,6 +226,75 @@ func TestCloudProviders(t *testing.T) {
 	})
 }
 
+func TestURLRulesConformance(t *testing.T) {
+	ctx := context.Background()
+
+	data, err := os.ReadFile(vectorPath("url_rules.json"))
+	if err != nil {
+		t.Fatalf("read vectors: %v", err)
+	}
+
+	var vectors struct {
+		Cases []struct {
+			Name     string `json:"name"`
+			Preset   string `json:"preset"`
+			URLRules *struct {
+				Allow []URLRule `json:"allow"`
+				Deny  []URLRule `json:"deny"`
+			} `json:"url_rules"`
+			URL      string `json:"url"`
+			Expected string `json:"expected"`
+		} `json:"cases"`
+	}
+	if err := json.Unmarshal(data, &vectors); err != nil {
+		t.Fatalf("parse vectors: %v", err)
+	}
+
+	for _, tc := range vectors.Cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			var preset Preset
+			switch tc.Preset {
+			case "external_only":
+				preset = PresetExternalOnly
+			case "internal_only":
+				preset = PresetInternalOnly
+			default:
+				preset = PresetNone
+			}
+
+			builder := NewPolicyBuilder(preset)
+			if tc.URLRules != nil {
+				for _, rule := range tc.URLRules.Allow {
+					builder.WithURLAllow(rule)
+				}
+				for _, rule := range tc.URLRules.Deny {
+					builder.WithURLDeny(rule)
+				}
+			}
+
+			policy, err := builder.Build(ctx)
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			defer func() { _ = policy.Close(ctx) }()
+
+			err = policy.IsAllowed(ctx, tc.URL)
+			switch tc.Expected {
+			case "allowed":
+				if err != nil {
+					t.Errorf("expected allowed, got: %v", err)
+				}
+			case "blocked":
+				if err == nil {
+					t.Errorf("expected blocked, got allowed")
+				} else if !errors.Is(err, ErrBlocked) {
+					t.Errorf("expected ErrBlocked, got: %v", err)
+				}
+			}
+		})
+	}
+}
+
 func TestDisableForTests(t *testing.T) {
 	DisableForTests(t)
 	ctx := context.Background()

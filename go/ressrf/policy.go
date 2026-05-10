@@ -17,12 +17,37 @@ const (
 	PresetNone         Preset = "None"
 )
 
+// URLRule defines a URL-level allow or deny matching rule.
+// Fields are evaluated as follows: if Regex is set, it matches the entire URL
+// and Scheme/Host/Path are ignored. Otherwise, Scheme is an exact match,
+// Host is a glob pattern (* = single DNS label), and Path is a glob pattern
+// (* = single segment, ** = any depth).
+type URLRule struct {
+	// Exact scheme match (e.g. "https"). Empty means any scheme.
+	Scheme string `json:"scheme,omitempty"`
+	// Host glob pattern (e.g. "*.stripe.com", "api.example.com").
+	Host string `json:"host,omitempty"`
+	// Path glob pattern (e.g. "/v1/**", "/api/*").
+	Path string `json:"path,omitempty"`
+	// Full regex matching the entire URL. When set, Scheme/Host/Path are ignored.
+	Regex string `json:"regex,omitempty"`
+	// When true on an allow rule, a matching URL skips the IP-level policy check.
+	BypassIPCheck bool `json:"bypass_ip_check,omitempty"`
+}
+
+// urlRulesConfig is the JSON structure for url_rules in the WASM config.
+type urlRulesConfig struct {
+	Allow []URLRule `json:"allow,omitempty"`
+	Deny  []URLRule `json:"deny,omitempty"`
+}
+
 // PolicyConfig matches the WASM ABI's PolicyConfig input struct.
 type PolicyConfig struct {
-	Preset         string   `json:"preset"`
-	AllowCIDRs     []string `json:"allow_cidrs,omitempty"`
-	DenyCIDRs      []string `json:"deny_cidrs,omitempty"`
-	CloudProviders []string `json:"cloud_providers,omitempty"`
+	Preset         string         `json:"preset"`
+	AllowCIDRs     []string       `json:"allow_cidrs,omitempty"`
+	DenyCIDRs      []string       `json:"deny_cidrs,omitempty"`
+	CloudProviders []string       `json:"cloud_providers,omitempty"`
+	URLRules       *urlRulesConfig `json:"url_rules,omitempty"`
 }
 
 // Policy is a compiled SSRF policy backed by the WASM engine.
@@ -73,6 +98,24 @@ func (b *PolicyBuilder) WithDeniedCIDRs(cidrs ...string) *PolicyBuilder {
 // whose metadata endpoint IPs and internal domains will be denied.
 func (b *PolicyBuilder) WithCloudProviders(providers ...string) *PolicyBuilder {
 	b.config.CloudProviders = append(b.config.CloudProviders, providers...)
+	return b
+}
+
+// WithURLAllow adds a URL allow rule to the policy.
+func (b *PolicyBuilder) WithURLAllow(rule URLRule) *PolicyBuilder {
+	if b.config.URLRules == nil {
+		b.config.URLRules = &urlRulesConfig{}
+	}
+	b.config.URLRules.Allow = append(b.config.URLRules.Allow, rule)
+	return b
+}
+
+// WithURLDeny adds a URL deny rule to the policy.
+func (b *PolicyBuilder) WithURLDeny(rule URLRule) *PolicyBuilder {
+	if b.config.URLRules == nil {
+		b.config.URLRules = &urlRulesConfig{}
+	}
+	b.config.URLRules.Deny = append(b.config.URLRules.Deny, rule)
 	return b
 }
 
