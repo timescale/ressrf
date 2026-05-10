@@ -111,7 +111,10 @@ class TestUrlRules:
             policy = builder.build()
 
             if expected == "allowed":
-                policy.validate_url(url)
+                try:
+                    policy.validate_url(url)
+                except (RessrfBlockedError, ValueError) as e:
+                    pytest.fail(f"{name}: expected allowed but got {e}")
             else:
                 with pytest.raises((RessrfBlockedError, ValueError), match=".*"):
                     policy.validate_url(url)
