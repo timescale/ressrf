@@ -1,4 +1,6 @@
-# ressrf
+<p align="center">
+    <img src="assets/ressrf-logo.png" alt="ressrf" width="200">
+</p>
 
 [![CI](https://github.com/mostafa/ressrf/actions/workflows/ci.yml/badge.svg)](https://github.com/mostafa/ressrf/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
