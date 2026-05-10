@@ -43,10 +43,10 @@ type urlRulesConfig struct {
 
 // PolicyConfig matches the WASM ABI's PolicyConfig input struct.
 type PolicyConfig struct {
-	Preset         string         `json:"preset"`
-	AllowCIDRs     []string       `json:"allow_cidrs,omitempty"`
-	DenyCIDRs      []string       `json:"deny_cidrs,omitempty"`
-	CloudProviders []string       `json:"cloud_providers,omitempty"`
+	Preset         string          `json:"preset"`
+	AllowCIDRs     []string        `json:"allow_cidrs,omitempty"`
+	DenyCIDRs      []string        `json:"deny_cidrs,omitempty"`
+	CloudProviders []string        `json:"cloud_providers,omitempty"`
 	URLRules       *urlRulesConfig `json:"url_rules,omitempty"`
 }
 

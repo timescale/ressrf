@@ -25,6 +25,23 @@ class CorePolicyBuilder:
         require_https: bool = True,
     ) -> None: ...
     def with_cloud(self, name: str) -> None: ...
+    def url_allow(
+        self,
+        *,
+        scheme: str | None = None,
+        host: str | None = None,
+        path: str | None = None,
+        regex: str | None = None,
+        bypass_ip_check: bool = False,
+    ) -> None: ...
+    def url_deny(
+        self,
+        *,
+        scheme: str | None = None,
+        host: str | None = None,
+        path: str | None = None,
+        regex: str | None = None,
+    ) -> None: ...
     def audit_sink(self, callback: Callable[[str], None]) -> None: ...
     def build(self) -> CorePolicy: ...
 
