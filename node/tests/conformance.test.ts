@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Policy, PolicyBuilder } from "../src/policy.js";
+import { Policy, PolicyBuilder, type UrlRule, type Preset } from "../src/policy.js";
 import { RessrfBlockedError } from "../src/errors.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -80,6 +80,73 @@ describe("Conformance: URL Validation", () => {
 
     it(c.name, async () => {
       const policy = await Policy.externalOnly();
+
+      if (c.expected === "allowed") {
+        assert.doesNotThrow(() => policy.isAllowed(c.url));
+      } else {
+        assert.throws(
+          () => policy.isAllowed(c.url),
+          (err: unknown) => err instanceof RessrfBlockedError || err instanceof Error,
+          `expected blocked for case: ${c.name}`,
+        );
+      }
+
+      policy.close();
+    });
+  }
+});
+
+interface RawUrlRule {
+  scheme?: string;
+  host?: string;
+  path?: string;
+  regex?: string;
+  bypass_ip_check?: boolean;
+}
+
+interface UrlRuleCase {
+  name: string;
+  preset: string;
+  url_rules?: {
+    allow?: RawUrlRule[];
+    deny?: RawUrlRule[];
+  };
+  url: string;
+  expected: string;
+}
+
+describe("Conformance: URL Rules", () => {
+  const { cases } = loadVectors("url_rules.json");
+
+  for (const raw of cases) {
+    const c = raw as UrlRuleCase;
+
+    it(c.name, async () => {
+      const builder = new PolicyBuilder(c.preset as Preset);
+
+      if (c.url_rules?.allow) {
+        for (const rule of c.url_rules.allow) {
+          builder.urlAllow({
+            scheme: rule.scheme,
+            host: rule.host,
+            path: rule.path,
+            regex: rule.regex,
+            bypassIpCheck: rule.bypass_ip_check,
+          });
+        }
+      }
+      if (c.url_rules?.deny) {
+        for (const rule of c.url_rules.deny) {
+          builder.urlDeny({
+            scheme: rule.scheme,
+            host: rule.host,
+            path: rule.path,
+            regex: rule.regex,
+          });
+        }
+      }
+
+      const policy = await builder.build();
 
       if (c.expected === "allowed") {
         assert.doesNotThrow(() => policy.isAllowed(c.url));
