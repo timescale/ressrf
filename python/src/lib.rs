@@ -8,6 +8,7 @@ use pyo3::types::{PyDict, PyList};
 use ressrf_core::cloud::CloudProvider;
 use ressrf_core::error::{DataTier, Error};
 use ressrf_core::policy::{HeaderRules, PolicyBuilder, Preset, ProtocolRules};
+use ressrf_core::url_rules::UrlRule;
 use ressrf_core::{AuditEvent, AuditSink, Cidr, Policy, UriValidator};
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,56 @@ impl CorePolicyBuilder {
         Ok(())
     }
 
+    #[pyo3(signature = (*, scheme=None, host=None, path=None, regex=None, bypass_ip_check=false))]
+    fn url_allow(
+        &mut self,
+        scheme: Option<String>,
+        host: Option<String>,
+        path: Option<String>,
+        regex: Option<String>,
+        bypass_ip_check: bool,
+    ) -> PyResult<()> {
+        let builder = self
+            .inner
+            .as_mut()
+            .ok_or_else(|| PyValueError::new_err("builder already consumed by build()"))?;
+        let mut rule = UrlRule {
+            scheme,
+            host,
+            path,
+            regex,
+            bypass_ip_check: false,
+        };
+        if bypass_ip_check {
+            rule = rule.bypass_ip_check();
+        }
+        builder.url_allow(rule);
+        Ok(())
+    }
+
+    #[pyo3(signature = (*, scheme=None, host=None, path=None, regex=None))]
+    fn url_deny(
+        &mut self,
+        scheme: Option<String>,
+        host: Option<String>,
+        path: Option<String>,
+        regex: Option<String>,
+    ) -> PyResult<()> {
+        let builder = self
+            .inner
+            .as_mut()
+            .ok_or_else(|| PyValueError::new_err("builder already consumed by build()"))?;
+        let rule = UrlRule {
+            scheme,
+            host,
+            path,
+            regex,
+            bypass_ip_check: false,
+        };
+        builder.url_deny(rule);
+        Ok(())
+    }
+
     fn audit_sink(&mut self, callback: Py<PyAny>) -> PyResult<()> {
         let builder = self
             .inner
@@ -203,6 +254,12 @@ impl CorePolicy {
     }
 
     fn validate_url(&self, url: &str) -> PyResult<()> {
+        // Check URL rules first
+        match self.inner.validate_url_rules(url) {
+            Err(e) => return Err(error_to_py(e)),
+            Ok(true) => return Ok(()), // bypass IP check
+            Ok(false) => {}
+        }
         let validator = UriValidator::default();
         validator
             .validate_url(url, Some(&self.inner))

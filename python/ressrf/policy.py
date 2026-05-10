@@ -156,6 +156,37 @@ class PolicyBuilder:
         self._builder.with_cloud(name)
         return self
 
+    def url_allow(
+        self,
+        *,
+        scheme: str | None = None,
+        host: str | None = None,
+        path: str | None = None,
+        regex: str | None = None,
+        bypass_ip_check: bool = False,
+    ) -> PolicyBuilder:
+        """Add a URL allow rule with glob patterns or regex."""
+        self._builder.url_allow(
+            scheme=scheme,
+            host=host,
+            path=path,
+            regex=regex,
+            bypass_ip_check=bypass_ip_check,
+        )
+        return self
+
+    def url_deny(
+        self,
+        *,
+        scheme: str | None = None,
+        host: str | None = None,
+        path: str | None = None,
+        regex: str | None = None,
+    ) -> PolicyBuilder:
+        """Add a URL deny rule with glob patterns or regex."""
+        self._builder.url_deny(scheme=scheme, host=host, path=path, regex=regex)
+        return self
+
     def audit_sink(
         self, sink: AuditSink | Callable[[AuditEvent], None]
     ) -> PolicyBuilder:
