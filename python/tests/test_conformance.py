@@ -76,3 +76,45 @@ class TestUrlValidation:
             else:
                 with pytest.raises((RessrfBlockedError, ValueError)):
                     policy.validate_url(url)
+
+
+class TestUrlRules:
+    """Test URL rules using shared vectors."""
+
+    def test_all_vectors(self, url_rules_vectors: list[dict]) -> None:
+        for case in url_rules_vectors:
+            name = case["name"]
+            preset = case.get("preset", "external_only")
+            url = case["url"]
+            expected = case["expected"]
+            url_rules = case.get("url_rules", {})
+
+            builder = PolicyBuilder(preset)
+
+            for rule in url_rules.get("allow", []):
+                builder.url_allow(
+                    scheme=rule.get("scheme"),
+                    host=rule.get("host"),
+                    path=rule.get("path"),
+                    regex=rule.get("regex"),
+                    bypass_ip_check=rule.get("bypass_ip_check", False),
+                )
+
+            for rule in url_rules.get("deny", []):
+                builder.url_deny(
+                    scheme=rule.get("scheme"),
+                    host=rule.get("host"),
+                    path=rule.get("path"),
+                    regex=rule.get("regex"),
+                )
+
+            policy = builder.build()
+
+            if expected == "allowed":
+                try:
+                    policy.validate_url(url)
+                except (RessrfBlockedError, ValueError) as e:
+                    pytest.fail(f"{name}: expected allowed but got {e}")
+            else:
+                with pytest.raises((RessrfBlockedError, ValueError), match=".*"):
+                    policy.validate_url(url)

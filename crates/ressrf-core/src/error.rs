@@ -113,6 +113,10 @@ pub enum DenyReason {
     ProtocolNotAllowed { protocol: String },
     PlaintextHttpDenied,
 
+    // URL rules
+    UrlRuleDenied { url: String },
+    UrlRuleNotInAllowList { url: String },
+
     // Catch-all
     ExplicitDenyList { cidr: String },
     PolicyImmutabilityViolation,
@@ -168,6 +172,10 @@ impl fmt::Display for DenyReason {
                 write!(f, "protocol not allowed: {protocol}")
             }
             Self::PlaintextHttpDenied => write!(f, "plaintext HTTP denied"),
+            Self::UrlRuleDenied { url } => write!(f, "URL denied by rule: {url}"),
+            Self::UrlRuleNotInAllowList { url } => {
+                write!(f, "URL not in allow list: {url}")
+            }
             Self::ExplicitDenyList { cidr } => write!(f, "in explicit deny list: {cidr}"),
             Self::PolicyImmutabilityViolation => {
                 write!(f, "policy mutation after finalization")

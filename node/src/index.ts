@@ -1,4 +1,11 @@
-export { Policy, PolicyBuilder, type PolicyOptions, type Preset } from "./policy.js";
+export {
+  Policy,
+  PolicyBuilder,
+  type PolicyOptions,
+  type Preset,
+  type UrlRule,
+  type UrlRulesConfig,
+} from "./policy.js";
 export {
   type AuditEvent,
   type AuditSink,

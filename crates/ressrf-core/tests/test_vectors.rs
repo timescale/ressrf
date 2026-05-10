@@ -7,6 +7,7 @@ use ressrf_core::cidr::Cidr;
 use ressrf_core::error::DataTier;
 use ressrf_core::policy::{PolicyBuilder, Preset};
 use ressrf_core::uri_validator::UriValidator;
+use ressrf_core::url_rules::UrlRuleset;
 
 fn vectors_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -162,6 +163,57 @@ fn url_validation_vectors() {
                 result.is_err(),
                 "{name}: expected blocked for URL '{url}', got allowed"
             ),
+            _ => panic!("Unknown expected: {expected}"),
+        }
+    }
+}
+
+#[test]
+fn url_rules_vectors() {
+    let path = vectors_dir().join("url_rules.json");
+    let content = std::fs::read_to_string(&path).unwrap();
+    let data: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    for case in data["cases"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let url = case["url"].as_str().unwrap();
+        let expected = case["expected"].as_str().unwrap();
+
+        let preset_str = case
+            .get("preset")
+            .and_then(|v| v.as_str())
+            .unwrap_or("external_only");
+        let preset = match preset_str {
+            "external_only" => Preset::ExternalOnly,
+            "internal_only" => Preset::InternalOnly,
+            "none" => Preset::None,
+            _ => panic!("Unknown preset: {preset_str}"),
+        };
+
+        let mut builder = PolicyBuilder::new(preset);
+
+        if let Some(url_rules) = case.get("url_rules") {
+            let ruleset: UrlRuleset = serde_json::from_value(url_rules.clone()).unwrap_or_default();
+            builder.url_ruleset(ruleset);
+        }
+
+        let policy = builder.try_build().unwrap_or_else(|e| {
+            panic!("{name}: failed to build policy: {e}");
+        });
+
+        let result = policy.validate_url_rules(url);
+
+        match expected {
+            "allowed" => match result {
+                Ok(_) => {}
+                Err(e) => panic!("{name}: expected allowed for URL '{url}', got {e}"),
+            },
+            "blocked" => {
+                assert!(
+                    result.is_err(),
+                    "{name}: expected blocked for URL '{url}', got allowed"
+                );
+            }
             _ => panic!("Unknown expected: {expected}"),
         }
     }

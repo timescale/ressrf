@@ -32,7 +32,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::slice;
 
-use ressrf_core::{CloudProvider, PolicyBuilder, Preset};
+use ressrf_core::{CloudProvider, PolicyBuilder, Preset, UrlRuleset};
 use serde::{Deserialize, Serialize};
 
 /// Opaque handle to a Policy instance stored on the heap.
@@ -76,6 +76,8 @@ struct PolicyConfig {
     deny_cidrs: Vec<String>,
     #[serde(default)]
     cloud_providers: Vec<String>,
+    #[serde(default)]
+    url_rules: Option<UrlRuleset>,
 }
 
 /// Input format for network validation.
@@ -175,6 +177,10 @@ pub extern "C" fn ressrf_policy_new(json_ptr: *const u8, json_len: u32) -> Polic
         }
     }
 
+    if let Some(url_rules) = config.url_rules {
+        builder.url_ruleset(url_rules);
+    }
+
     #[allow(static_mut_refs)]
     let audit_enabled = unsafe { AUDIT_ENABLED };
     if audit_enabled {
@@ -239,6 +245,11 @@ pub extern "C" fn ressrf_policy_is_network_allowed(
 /// Check if a URL request is allowed by the policy.
 /// Input: JSON `{"url": "http://example.com/path"}`.
 /// Returns a pointer to a length-prefixed JSON result string.
+///
+/// Evaluation order:
+/// 1. URL rules (deny first, then allow with optional `bypass_ip_check`)
+/// 2. URI structural validation (scheme, userinfo, domain suffixes)
+/// 3. IP-level network check (if URL rule did not bypass)
 #[unsafe(no_mangle)]
 pub extern "C" fn ressrf_policy_is_request_allowed(
     handle: PolicyHandle,
@@ -250,6 +261,24 @@ pub extern "C" fn ressrf_policy_is_request_allowed(
         let json_bytes = unsafe { slice::from_raw_parts(json_ptr, json_len as usize) };
         let input: RequestCheckInput =
             serde_json::from_slice(json_bytes).map_err(|e| alloc::format!("parse error: {e}"))?;
+
+        // Check URL rules first
+        match policy.validate_url_rules(&input.url) {
+            Err(e) => {
+                return Ok(WasmResult {
+                    allowed: false,
+                    error: Some(alloc::format!("{e}")),
+                });
+            }
+            Ok(bypass_ip) => {
+                if bypass_ip {
+                    return Ok(WasmResult {
+                        allowed: true,
+                        error: None,
+                    });
+                }
+            }
+        }
 
         let validator = ressrf_core::UriValidator::default();
         match validator.validate_url(&input.url, Some(policy)) {

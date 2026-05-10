@@ -11,6 +11,7 @@ pub mod policy;
 #[cfg(feature = "std")]
 pub mod service_ranges;
 pub mod uri_validator;
+pub mod url_rules;
 
 pub use audit::{AuditEvent, AuditSink};
 pub use cidr::Cidr;
@@ -20,3 +21,4 @@ pub use policy::{Policy, PolicyBuilder, Preset};
 #[cfg(feature = "std")]
 pub use service_ranges::ServiceRangeTable;
 pub use uri_validator::UriValidator;
+pub use url_rules::{UrlRule, UrlRuleDecision, UrlRuleset};

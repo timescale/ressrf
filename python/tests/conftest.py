@@ -29,3 +29,10 @@ def url_vectors() -> list[dict]:
     with open(VECTORS_DIR / "url_validation.json") as f:
         data = json.load(f)
     return data["cases"]
+
+
+@pytest.fixture
+def url_rules_vectors() -> list[dict]:
+    with open(VECTORS_DIR / "url_rules.json") as f:
+        data = json.load(f)
+    return data["cases"]
