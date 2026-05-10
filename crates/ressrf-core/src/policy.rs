@@ -7,6 +7,7 @@ use crate::audit::{AuditEvent, AuditSink};
 use crate::cidr::{Cidr, CidrSet};
 use crate::error::{DataTier, DenyReason, Error};
 use crate::ip_ranges;
+use crate::url_rules::{UrlRule, UrlRuleDecision, UrlRuleset};
 
 /// Policy presets that determine default allow/deny behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +53,7 @@ pub struct PolicyBuilder {
     protocol_rules: ProtocolRules,
     cloud_modules: Vec<String>,
     audit_sink: Option<Box<dyn AuditSink>>,
+    url_ruleset: UrlRuleset,
     #[cfg(feature = "std")]
     service_ranges: Option<crate::service_ranges::ServiceRangeTable>,
 }
@@ -78,6 +80,7 @@ impl PolicyBuilder {
             protocol_rules: ProtocolRules::default(),
             cloud_modules: Vec::new(),
             audit_sink: None,
+            url_ruleset: UrlRuleset::new(),
             #[cfg(feature = "std")]
             service_ranges: None,
         }
@@ -159,6 +162,24 @@ impl PolicyBuilder {
         self
     }
 
+    /// Add a URL allow rule.
+    pub fn url_allow(&mut self, rule: UrlRule) -> &mut Self {
+        self.url_ruleset.add_allow(rule);
+        self
+    }
+
+    /// Add a URL deny rule.
+    pub fn url_deny(&mut self, rule: UrlRule) -> &mut Self {
+        self.url_ruleset.add_deny(rule);
+        self
+    }
+
+    /// Set the entire URL ruleset (used by WASM config deserialization).
+    pub fn url_ruleset(&mut self, ruleset: UrlRuleset) -> &mut Self {
+        self.url_ruleset = ruleset;
+        self
+    }
+
     /// Attach a [`ServiceRangeTable`](crate::service_ranges::ServiceRangeTable)
     /// for optional allow-listing decisions based on cloud service IP ranges.
     ///
@@ -174,16 +195,24 @@ impl PolicyBuilder {
     }
 
     /// Build the immutable policy. After this, no further modifications are possible.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a URL rule contains an invalid regex pattern (use `try_build` for
+    /// fallible construction).
     pub fn build(mut self) -> Policy {
-        // Load default deny set for ExternalOnly preset.
-        // InternalOnly does not need it since it only checks the allow list,
-        // but we still load it so that future features (e.g. audit-only deny reporting)
-        // have the data available without a breaking change.
         if self.preset == Preset::ExternalOnly {
             let defaults = ip_ranges::default_deny_set();
             for cidr in defaults {
                 self.deny_set.add(cidr);
             }
+        }
+
+        #[cfg(feature = "std")]
+        if !self.url_ruleset.is_empty() {
+            self.url_ruleset
+                .compile()
+                .expect("URL rule regex compilation failed");
         }
 
         let deny_count = self.deny_set.len();
@@ -197,11 +226,11 @@ impl PolicyBuilder {
             protocol_rules: self.protocol_rules,
             cloud_modules: self.cloud_modules.clone(),
             audit_sink: self.audit_sink,
+            url_ruleset: self.url_ruleset,
             #[cfg(feature = "std")]
             service_ranges: self.service_ranges,
         };
 
-        // Emit PolicyCreated audit event
         policy.emit_audit(&AuditEvent::PolicyCreated {
             preset: alloc::format!("{:?}", self.preset),
             cloud_modules: self.cloud_modules,
@@ -210,6 +239,46 @@ impl PolicyBuilder {
         });
 
         policy
+    }
+
+    /// Build the policy, returning an error if URL rule regex compilation fails.
+    pub fn try_build(mut self) -> crate::Result<Policy> {
+        if self.preset == Preset::ExternalOnly {
+            let defaults = ip_ranges::default_deny_set();
+            for cidr in defaults {
+                self.deny_set.add(cidr);
+            }
+        }
+
+        #[cfg(feature = "std")]
+        if !self.url_ruleset.is_empty() {
+            self.url_ruleset.compile()?;
+        }
+
+        let deny_count = self.deny_set.len();
+        let allow_count = self.allow_set.len();
+
+        let policy = Policy {
+            preset: self.preset,
+            deny_set: self.deny_set,
+            allow_set: self.allow_set,
+            header_rules: self.header_rules,
+            protocol_rules: self.protocol_rules,
+            cloud_modules: self.cloud_modules.clone(),
+            audit_sink: self.audit_sink,
+            url_ruleset: self.url_ruleset,
+            #[cfg(feature = "std")]
+            service_ranges: self.service_ranges,
+        };
+
+        policy.emit_audit(&AuditEvent::PolicyCreated {
+            preset: alloc::format!("{:?}", self.preset),
+            cloud_modules: self.cloud_modules,
+            deny_count,
+            allow_count,
+        });
+
+        Ok(policy)
     }
 }
 
@@ -222,6 +291,7 @@ pub struct Policy {
     protocol_rules: ProtocolRules,
     cloud_modules: Vec<String>,
     audit_sink: Option<Box<dyn AuditSink>>,
+    url_ruleset: UrlRuleset,
     #[cfg(feature = "std")]
     service_ranges: Option<crate::service_ranges::ServiceRangeTable>,
 }
@@ -353,6 +423,36 @@ impl Policy {
     #[must_use]
     pub fn protocol_rules(&self) -> &ProtocolRules {
         &self.protocol_rules
+    }
+
+    /// Evaluate URL rules against the given URL.
+    ///
+    /// Returns `Ok(true)` if the URL was allowed and IP check should be bypassed.
+    /// Returns `Ok(false)` if the URL was allowed (or no rules configured) and IP check should proceed.
+    /// Returns `Err` if the URL was denied by a rule.
+    pub fn validate_url_rules(&self, url: &str) -> crate::Result<bool> {
+        if self.url_ruleset.is_empty() {
+            return Ok(false);
+        }
+
+        match self.url_ruleset.evaluate(url) {
+            UrlRuleDecision::Denied => Err(Error::Blocked(DenyReason::UrlRuleDenied {
+                url: String::from(url),
+            })),
+            UrlRuleDecision::AllowedBypassIp => Ok(true),
+            UrlRuleDecision::Allowed | UrlRuleDecision::NoMatch => Ok(false),
+        }
+    }
+
+    /// Combined validation: check URL rules, then optionally check IP rules.
+    /// This is the primary entry point for request validation when both URL and
+    /// IP-level checks are needed.
+    pub fn is_request_allowed(&self, url: &str, ips: &[IpAddr]) -> crate::Result<()> {
+        let bypass_ip = self.validate_url_rules(url)?;
+        if bypass_ip {
+            return Ok(());
+        }
+        self.is_network_allowed(ips)
     }
 
     /// Look up which cloud service owns an IP address, if a

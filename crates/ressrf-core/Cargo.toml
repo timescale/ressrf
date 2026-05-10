@@ -15,13 +15,14 @@ workspace = true
 
 [features]
 default = ["std"]
-std = ["prefix-trie", "ipnet"]
+std = ["prefix-trie", "ipnet", "regex"]
 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
 prefix-trie = { version = "0.8", optional = true }
 ipnet = { version = "2", optional = true }
+regex = { version = "1", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
