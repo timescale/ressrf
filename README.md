@@ -221,7 +221,7 @@ python scripts/generate_ip_ranges.py --validate-only
 
 ## Testing
 
-Shared test vectors in `tests/vectors/` ensure identical behavior across all languages:
+Shared test vectors in `tests/vectors/` ensure identical behavior across all languages, including a 92-case `ssrf_techniques.json` covering the full SSRF bypass technique taxonomy (IP representation tricks, IPv6 variants, parser confusion, protocol smuggling, cloud metadata, Unicode/IDN, and more):
 
 ```bash
 cargo test --workspace --all-features     # Rust
@@ -230,12 +230,19 @@ cd python && uv run pytest tests/ -v      # Python
 cd node && npx tsx --test tests/*.test.ts # Node.js
 ```
 
+A Tier 2 end-to-end suite under `crates/ressrf-tcp/tests/ssrf_e2e.rs` exercises DNS-rebinding pinning and redirect chains through the full network stack using CoreDNS and WireMock containers (`tests/containers/`). It is gated behind the `e2e` Cargo feature and requires Docker; tests skip with a notice when Docker is unavailable:
+
+```bash
+cargo test --features e2e -p ressrf-tcp --test ssrf_e2e
+```
+
 ## CI/CD
 
 - **Rust:** check, fmt, clippy, test (Linux/macOS/Windows), WASM build
 - **Go:** test (multi-OS, race detector), vet, golangci-lint
 - **Python:** pytest (multi-OS), ruff, ty
 - **Node.js:** node:test (multi-OS), tsc
+- **SSRF e2e:** Linux-only Tier 2 job spins up CoreDNS + WireMock to verify DNS-based and redirect-based bypasses end-to-end
 - **Security:** cargo audit, govulncheck, cargo-fuzz (weekly), zizmor
 - **IP ranges:** monthly upstream fetch, validate, test, auto-PR
 

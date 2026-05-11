@@ -36,3 +36,10 @@ def url_rules_vectors() -> list[dict]:
     with open(VECTORS_DIR / "url_rules.json") as f:
         data = json.load(f)
     return data["cases"]
+
+
+@pytest.fixture
+def ssrf_techniques_vectors() -> list[dict]:
+    with open(VECTORS_DIR / "ssrf_techniques.json") as f:
+        data = json.load(f)
+    return data["cases"]

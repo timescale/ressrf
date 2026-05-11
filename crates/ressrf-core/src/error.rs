@@ -79,8 +79,10 @@ pub enum DenyReason {
     // URL/URI structural
     UrlParseError { detail: String },
     SchemeNotAllowed { scheme: String },
+    SchemeRequired,
     BareIpDeniedBeforeScheme { ip: String },
     HostnameInvalid { reason: String },
+    AmbiguousIpEncoding { host: String, form: String },
     IdnError { detail: String },
     UserinfoBypassAttempt,
 
@@ -127,10 +129,14 @@ impl fmt::Display for DenyReason {
         match self {
             Self::UrlParseError { detail } => write!(f, "URL parse error: {detail}"),
             Self::SchemeNotAllowed { scheme } => write!(f, "scheme not allowed: {scheme}"),
+            Self::SchemeRequired => write!(f, "URL scheme is required (e.g. http:// or https://)"),
             Self::BareIpDeniedBeforeScheme { ip } => {
                 write!(f, "bare IP denied before scheme check: {ip}")
             }
             Self::HostnameInvalid { reason } => write!(f, "hostname invalid: {reason}"),
+            Self::AmbiguousIpEncoding { host, form } => {
+                write!(f, "ambiguous IP encoding ({form}) not allowed: {host}")
+            }
             Self::IdnError { detail } => write!(f, "IDN error: {detail}"),
             Self::UserinfoBypassAttempt => write!(f, "userinfo bypass attempt detected"),
             Self::DomainNotInAllowList { host } => {

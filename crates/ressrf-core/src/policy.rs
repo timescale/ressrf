@@ -352,21 +352,44 @@ impl Policy {
 
     /// Validate a list of hosts (for multi-host connection strings like Postgres fallbacks).
     /// Every host in the list must pass individually.
+    ///
+    /// Hosts that look like ambiguous IP encodings (octal, hex, decimal-integer,
+    /// shorthand) are rejected explicitly rather than silently deferred to DNS.
     pub fn validate_all_hosts(&self, hosts: &[&str]) -> crate::Result<()> {
         for &host in hosts {
-            if let Ok(ip) = host.parse::<IpAddr>() {
-                self.is_network_allowed(&[ip]).map_err(|e| {
-                    if let Error::Blocked(reason) = e {
-                        Error::Blocked(DenyReason::MultiHostFallbackDenied {
+            // Strip optional brackets so `[::1]` and `::1` parse the same.
+            let bracketless = if host.starts_with('[') && host.ends_with(']') {
+                &host[1..host.len() - 1]
+            } else {
+                host
+            };
+
+            match crate::cidr::parse_ip(bracketless) {
+                Ok(ip) => {
+                    self.is_network_allowed(&[ip]).map_err(|e| {
+                        if let Error::Blocked(reason) = e {
+                            Error::Blocked(DenyReason::MultiHostFallbackDenied {
+                                host: String::from(host),
+                                reason: Box::new(reason),
+                            })
+                        } else {
+                            e
+                        }
+                    })?;
+                }
+                Err(_) => {
+                    // Reject ambiguous IP encodings instead of letting them
+                    // silently fall through to DNS, where they would be
+                    // resolved to internal addresses by libc's getaddrinfo.
+                    if crate::cidr::is_ambiguous_ip(bracketless) {
+                        return Err(Error::Blocked(DenyReason::AmbiguousIpEncoding {
                             host: String::from(host),
-                            reason: Box::new(reason),
-                        })
-                    } else {
-                        e
+                            form: String::from("non-canonical IPv4 (octal/hex/decimal/shorthand)"),
+                        }));
                     }
-                })?;
+                    // Genuine hostnames require DNS resolution (handled by protocol modules).
+                }
             }
-            // Non-IP hosts require DNS resolution (handled by protocol modules)
         }
         Ok(())
     }

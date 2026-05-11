@@ -99,6 +99,29 @@ impl RedirectValidator {
     ///
     /// Returns `Ok(())` if the redirect is allowed, or an error describing
     /// why it was blocked.
+    ///
+    /// # Defense-in-depth (BS-7)
+    ///
+    /// `validate_hop` is synchronous and runs only string-level checks via
+    /// `UriValidator::validate_url`: scheme allowlist, bare-IP policy match,
+    /// userinfo bypass detection, ambiguous IP encoding, NUL/CRLF, trailing
+    /// dot normalization, backslash normalization, and domain suffix rules.
+    ///
+    /// It does **not** perform DNS resolution on hostname-based redirect
+    /// targets, because DNS is async and the redirect hook of most HTTP
+    /// clients is synchronous. A redirect like `https://innocent-looking.com`
+    /// that resolves to `10.0.0.1` will pass this check.
+    ///
+    /// The defense-in-depth design ensures the IP is still checked at the
+    /// TCP layer: when the underlying `SafeConnector` (from `ressrf-tcp`)
+    /// connects to the redirect target, it resolves the hostname and
+    /// validates every resolved IP against the same `Policy`. The connection
+    /// is made directly to the validated IP, so DNS rebinding between
+    /// `validate_hop` and the actual connect is impossible.
+    ///
+    /// Therefore, always pair `RedirectValidator` with `SafeConnector` (or an
+    /// equivalent DNS-pinning connector) for full SSRF protection on
+    /// redirects.
     pub fn validate_hop(&self, target_url: &str) -> Result<(), HttpGuardError> {
         let hop = self.hops.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 

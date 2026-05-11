@@ -272,6 +272,11 @@ pub fn parse_ip(s: &str) -> crate::Result<IpAddr> {
 }
 
 /// Check if a string looks like a bare IP literal (v4 or v6, with optional brackets).
+///
+/// Uses the strict parser, so ambiguous IPv4 forms (octal `0177.0.0.1`, hex
+/// `0x7f000001`, decimal `2130706433`, shorthand `127.1`) return `false` here
+/// to avoid silently letting them pass through. Use [`is_ambiguous_ip`] to
+/// detect those forms separately.
 #[must_use]
 pub fn is_ip_literal(s: &str) -> bool {
     let s = s.trim();
@@ -281,7 +286,105 @@ pub fn is_ip_literal(s: &str) -> bool {
     } else {
         s
     };
-    inner.parse::<IpAddr>().is_ok()
+    parse_ip_strict(inner).is_ok()
+}
+
+/// Detect host strings that look like an IP address but use ambiguous or
+/// non-canonical encodings (decimal integer, octal, hex, shorthand).
+///
+/// These forms are rejected by [`parse_ip_strict`] and would otherwise be
+/// silently treated as DNS hostnames. Examples:
+/// - `2130706433` (decimal `127.0.0.1`)
+/// - `0177.0.0.1` (octal `127.0.0.1`)
+/// - `0x7f000001` or `0x7f.0.0.1` (hex `127.0.0.1`)
+/// - `127.1` or `127.0.1` (shorthand `127.0.0.1`)
+///
+/// Returns `false` for genuine hostnames (`example.com`, `localhost`).
+/// Returns `false` for canonical IPv4/IPv6 (use [`is_ip_literal`] for those).
+#[must_use]
+pub fn is_ambiguous_ip(s: &str) -> bool {
+    let s = s.trim();
+
+    // Strip IPv6 brackets if present: bracketed forms are unambiguous IPv6.
+    if s.starts_with('[') && s.ends_with(']') {
+        return false;
+    }
+
+    if s.is_empty() {
+        return false;
+    }
+
+    // IPv6 (contains ':') is unambiguous: either parses or doesn't.
+    if s.contains(':') {
+        return false;
+    }
+
+    // Already-canonical IPv4 (4 dotted decimal octets) is unambiguous.
+    if parse_ip_strict(s).is_ok() {
+        return false;
+    }
+
+    // Hex IP (`0xNN.0xNN.0xNN.0xNN` or single integer like `0x7f000001`)
+    let lower = s.to_ascii_lowercase();
+    if lower.starts_with("0x")
+        && lower
+            .trim_start_matches("0x")
+            .chars()
+            .all(|c| c.is_ascii_hexdigit())
+    {
+        return true;
+    }
+    for label in s.split('.') {
+        let lower_label = label.to_ascii_lowercase();
+        if lower_label.starts_with("0x")
+            && lower_label
+                .trim_start_matches("0x")
+                .chars()
+                .all(|c| c.is_ascii_hexdigit())
+        {
+            return true;
+        }
+    }
+
+    // Decimal integer form: all digits, no dots (e.g. `2130706433`).
+    if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
+
+    // Dotted form with all-numeric labels.
+    if s.contains('.') {
+        let mut all_numeric = true;
+        let mut octet_count = 0;
+        let mut has_octal = false;
+        for label in s.split('.') {
+            octet_count += 1;
+            if label.is_empty() {
+                all_numeric = false;
+                break;
+            }
+            if !label.chars().all(|c| c.is_ascii_digit()) {
+                all_numeric = false;
+                break;
+            }
+            // Leading-zero octets are octal (e.g. `0177`).
+            if label.len() > 1 && label.starts_with('0') {
+                has_octal = true;
+            }
+        }
+
+        if all_numeric {
+            // Octal form (e.g. `0177.0.0.1`) -- non-canonical.
+            if has_octal {
+                return true;
+            }
+            // Shorthand IPv4 (e.g. `127.1`, `127.0.1`) -- non-canonical.
+            if octet_count != 4 {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -453,5 +556,65 @@ mod tests {
         assert!(is_ip_literal("[::1]"));
         assert!(!is_ip_literal("example.com"));
         assert!(!is_ip_literal("not-an-ip"));
+    }
+
+    #[test]
+    fn is_ip_literal_rejects_ambiguous_forms() {
+        // Strict parser rejects octal/hex/shorthand/decimal-integer.
+        assert!(!is_ip_literal("0177.0.0.1"));
+        assert!(!is_ip_literal("0x7f000001"));
+        assert!(!is_ip_literal("0x7f.0.0.1"));
+        assert!(!is_ip_literal("2130706433"));
+        assert!(!is_ip_literal("127.1"));
+    }
+
+    #[test]
+    fn is_ambiguous_ip_detection() {
+        // Decimal integer form
+        assert!(is_ambiguous_ip("2130706433"));
+        assert!(is_ambiguous_ip("2852039166"));
+        assert!(is_ambiguous_ip("0"));
+
+        // Octal form
+        assert!(is_ambiguous_ip("0177.0.0.1"));
+        assert!(is_ambiguous_ip("0177.0000.0000.0001"));
+        assert!(is_ambiguous_ip("017700000001"));
+
+        // Hex form
+        assert!(is_ambiguous_ip("0x7f000001"));
+        assert!(is_ambiguous_ip("0xa9fea9fe"));
+        assert!(is_ambiguous_ip("0x7f.0x0.0x0.0x1"));
+        assert!(is_ambiguous_ip("0X7F000001"));
+
+        // Shorthand form
+        assert!(is_ambiguous_ip("127.1"));
+        assert!(is_ambiguous_ip("127.0.1"));
+
+        // Mixed (not canonical 4-dot form, hex prefix)
+        assert!(is_ambiguous_ip("0x7f.0.0.1"));
+    }
+
+    #[test]
+    fn is_ambiguous_ip_excludes_canonical() {
+        // Canonical IPv4 -- not ambiguous (use is_ip_literal).
+        assert!(!is_ambiguous_ip("127.0.0.1"));
+        assert!(!is_ambiguous_ip("169.254.169.254"));
+        assert!(!is_ambiguous_ip("10.0.0.1"));
+
+        // IPv6 -- not ambiguous.
+        assert!(!is_ambiguous_ip("::1"));
+        assert!(!is_ambiguous_ip("fe80::1"));
+        assert!(!is_ambiguous_ip("[::1]"));
+        assert!(!is_ambiguous_ip("[::ffff:127.0.0.1]"));
+
+        // Genuine hostnames -- not ambiguous.
+        assert!(!is_ambiguous_ip("example.com"));
+        assert!(!is_ambiguous_ip("localhost"));
+        assert!(!is_ambiguous_ip("metadata.google.internal"));
+        assert!(!is_ambiguous_ip("api.example.com"));
+
+        // Empty / invalid -- not ambiguous.
+        assert!(!is_ambiguous_ip(""));
+        assert!(!is_ambiguous_ip("not-an-ip"));
     }
 }

@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-private"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://10.0.0.1/admin"
+    }
+  }
+}

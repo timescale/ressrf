@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-decimal-ip"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://2852039166/"
+    }
+  }
+}

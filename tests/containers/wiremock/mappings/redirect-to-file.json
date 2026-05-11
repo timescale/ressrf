@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-file"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "file:///etc/passwd"
+    }
+  }
+}

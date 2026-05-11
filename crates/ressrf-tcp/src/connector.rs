@@ -1,4 +1,4 @@
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -71,13 +71,41 @@ impl<D: DnsBackend> SafeConnector<D> {
     /// The connection is made directly to a validated IP address, preventing
     /// DNS rebinding attacks. If the host resolves to multiple addresses,
     /// each validated address is tried in order until one connects.
+    ///
+    /// Hosts that look like ambiguous IP encodings (octal `0177.0.0.1`,
+    /// hex `0x7f000001`, decimal-integer `2130706433`, shorthand `127.1`)
+    /// are rejected explicitly before reaching DNS, since libc's
+    /// `getaddrinfo` would otherwise resolve them to internal IP addresses.
     #[instrument(skip(self), fields(host = %host, port = %port))]
     pub async fn connect(&self, host: &str, port: u16) -> Result<TcpStream, TcpGuardError> {
         let start = Instant::now();
 
-        if let Ok(ip) = host.parse::<IpAddr>() {
-            let addr = self.resolver.validate_ip(ip, port)?;
-            return self.connect_addr(addr, start).await;
+        // Strip optional brackets so `[::1]` and `::1` parse the same.
+        let bracketless = if host.starts_with('[') && host.ends_with(']') {
+            &host[1..host.len() - 1]
+        } else {
+            host
+        };
+
+        match ressrf_core::cidr::parse_ip(bracketless) {
+            Ok(ip) => {
+                let addr = self.resolver.validate_ip(ip, port)?;
+                return self.connect_addr(addr, start).await;
+            }
+            Err(_) => {
+                if ressrf_core::cidr::is_ambiguous_ip(bracketless) {
+                    return Err(TcpGuardError::Blocked {
+                        addr: SocketAddr::new(
+                            std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED),
+                            port,
+                        ),
+                        reason: ressrf_core::error::DenyReason::AmbiguousIpEncoding {
+                            host: host.to_string(),
+                            form: "non-canonical IPv4 (octal/hex/decimal/shorthand)".to_string(),
+                        },
+                    });
+                }
+            }
         }
 
         let resolved = self.resolver.resolve(host, port).await?;

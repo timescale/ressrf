@@ -24,3 +24,4 @@ pin-project-lite = "0.2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+serde_json = { workspace = true }

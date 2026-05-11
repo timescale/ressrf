@@ -1,0 +1,42 @@
+; Zone file for ressrf SSRF e2e tests.
+;
+; Each name resolves to a controlled address that exercises a specific
+; SSRF defense. Used by the testcontainers-driven Rust/Go/Python/Node
+; e2e test runners.
+
+$ORIGIN ssrf.test.
+$TTL 60
+
+@                       IN SOA   ns.ssrf.test. admin.ssrf.test. (
+                                 1          ; serial
+                                 60         ; refresh
+                                 60         ; retry
+                                 86400      ; expire
+                                 60 )       ; minimum TTL
+                        IN NS    ns.ssrf.test.
+ns                      IN A     127.0.0.1
+
+; Wildcard DNS resolving to internal/private IPs.
+wildcard-loopback       IN A     127.0.0.1
+wildcard-imds           IN A     169.254.169.254
+wildcard-private        IN A     10.0.0.1
+
+; Public addresses (allowed by ExternalOnly preset).
+public-ok               IN A     93.184.216.34
+rebind-first            IN A     1.2.3.4
+
+; DNS rebinding helper (returned as the "second" answer in
+; multi-answer scenarios).
+rebind-second           IN A     10.0.0.1
+
+; Metadata alias: looks like a hostname but resolves to the AWS IMDS IP.
+metadata-alias          IN A     169.254.169.254
+
+; Multiple A records (mixed public + private). The "all-resolved-IPs
+; must pass" policy must reject the entire set when any one is denied.
+multi-answer            IN A     8.8.8.8
+multi-answer            IN A     10.0.0.1
+
+; FQDN with explicit trailing dot (verified by clients that don't
+; strip the dot before lookup).
+trailing-dot            IN A     169.254.169.254

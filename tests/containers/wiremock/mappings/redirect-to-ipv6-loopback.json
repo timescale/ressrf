@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-ipv6-loopback"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://[::1]:8080/"
+    }
+  }
+}

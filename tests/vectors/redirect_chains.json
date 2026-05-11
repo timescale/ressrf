@@ -87,8 +87,9 @@
       "chain": ["https://public.example.com/start", "http://10.42.1.1:8080/api"],
       "policy_preset": "external_only",
       "allow_cidrs": ["10.42.0.0/16"],
+      "allow_plaintext_http": true,
       "expected": "allowed",
-      "note": "Allow override permits the private range"
+      "note": "Allow override permits the private range; plaintext HTTP allowed for this internal target"
     },
     {
       "name": "redirect_to_cgnat",

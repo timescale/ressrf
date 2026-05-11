@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::net::IpAddr;
 
-use crate::cidr::is_ip_literal;
+use crate::cidr::{is_ambiguous_ip, is_ip_literal};
 use crate::error::{DenyReason, Error};
 use crate::policy::Policy;
 
@@ -74,20 +74,64 @@ impl UriValidator {
     /// Validate a URL string. Returns Ok(()) if it passes all checks.
     ///
     /// Checks performed:
-    /// 1. Bare IP detection (run through address check before scheme validation)
-    /// 2. Userinfo bypass resistance (detect %40 confusion)
-    /// 3. Scheme allowlist
-    /// 4. Hostname validation (IDN, double-dash, domain suffix matching)
+    /// 1. URL parsing (rejects UNC paths `\\host`, embedded NUL/CR/LF in host,
+    ///    normalizes backslash to slash before authority extraction)
+    /// 2. Scheme is required and must be in the allowlist (rejects scheme-less
+    ///    URLs like `javascript:...`, `data:...`, `http:host/path`)
+    /// 3. Trailing dot stripped from host before all other host-based checks
+    /// 4. Ambiguous IP encoding detection (decimal/octal/hex/shorthand IPv4)
+    /// 5. Bare IP detection (run through address check before further validation)
+    /// 6. Userinfo bypass resistance (detect %40 confusion)
+    /// 7. Hostname validation (IDN, double-dash, domain suffix matching)
     pub fn validate_url(&self, url: &str, policy: Option<&Policy>) -> crate::Result<()> {
         let url = url.trim();
 
-        // Parse URL components manually to avoid depending on the `url` crate in no_std.
+        // 1. Parse URL components manually to avoid depending on the `url` crate in no_std.
+        //    parse_url_parts handles BS-3 (NUL/CRLF), BS-5 (backslash), BS-6 (UNC).
         let parts = parse_url_parts(url)?;
 
-        // 1. Bare IP detection: if host is an IP literal, validate it against policy first.
-        if is_ip_literal(&parts.host) {
+        // 2. Scheme validation (BS-2): scheme is required, must be in the allowlist.
+        if let Some(ref scheme) = parts.scheme {
+            let scheme_lower = scheme.to_lowercase();
+            if !self.allowed_schemes.contains(&scheme_lower) {
+                return Err(Error::Blocked(DenyReason::SchemeNotAllowed {
+                    scheme: scheme_lower,
+                }));
+            }
+        } else {
+            // Scheme-less URLs are rejected. Two cases:
+            // - `javascript:alert(1)`, `data:text/html,...`, `http:host/path`
+            //   (have a `:` but no `//`): treat the prefix as a non-allowed scheme.
+            // - bare hostnames or paths: reject with SchemeRequired.
+            if let Some(pseudo) = pseudo_scheme(url) {
+                return Err(Error::Blocked(DenyReason::SchemeNotAllowed {
+                    scheme: pseudo.to_lowercase(),
+                }));
+            }
+            return Err(Error::Blocked(DenyReason::SchemeRequired));
+        }
+
+        // 3. Strip trailing dot (BS-4): treat `example.com.` as `example.com`.
+        let host_normalized = parts.host.trim_end_matches('.');
+        if host_normalized.is_empty() {
+            return Err(Error::Blocked(DenyReason::UrlParseError {
+                detail: String::from("empty host after stripping trailing dot"),
+            }));
+        }
+
+        // 4. Ambiguous IP encoding detection (BS-1): octal/hex/decimal/shorthand
+        //    IPv4 forms must be rejected before reaching DNS.
+        if is_ambiguous_ip(host_normalized) {
+            return Err(Error::Blocked(DenyReason::AmbiguousIpEncoding {
+                host: String::from(host_normalized),
+                form: String::from("non-canonical IPv4 (octal/hex/decimal/shorthand)"),
+            }));
+        }
+
+        // 5. Bare IP detection: if host is an IP literal, validate it against policy first.
+        if is_ip_literal(host_normalized) {
             if let Some(policy) = policy {
-                let ip = parse_host_as_ip(&parts.host)?;
+                let ip = parse_host_as_ip(host_normalized)?;
                 policy.is_network_allowed(&[ip]).map_err(|e| {
                     if let Error::Blocked(_) = e {
                         Error::Blocked(DenyReason::BareIpDeniedBeforeScheme {
@@ -100,23 +144,13 @@ impl UriValidator {
             }
         }
 
-        // 2. Userinfo bypass: detect %40 in the authority before the actual host.
+        // 6. Userinfo bypass: detect %40 in the authority before the actual host.
         if has_userinfo_bypass(url) {
             return Err(Error::Blocked(DenyReason::UserinfoBypassAttempt));
         }
 
-        // 3. Scheme allowlist
-        if let Some(ref scheme) = parts.scheme {
-            let scheme_lower = scheme.to_lowercase();
-            if !self.allowed_schemes.contains(&scheme_lower) {
-                return Err(Error::Blocked(DenyReason::SchemeNotAllowed {
-                    scheme: scheme_lower,
-                }));
-            }
-        }
-
-        // 4. Hostname validation
-        let host_lower = parts.host.to_lowercase();
+        // 7. Hostname validation
+        let host_lower = host_normalized.to_lowercase();
 
         // Reject double-dash for cloud domain validators
         if self.reject_double_dash_hostnames && host_lower.contains("--") {
@@ -142,7 +176,7 @@ impl UriValidator {
         }
 
         // If trusted suffixes are configured, host must match one of them
-        if !self.trusted_domain_suffixes.is_empty() && !is_ip_literal(&parts.host) {
+        if !self.trusted_domain_suffixes.is_empty() && !is_ip_literal(host_normalized) {
             let matches_trusted = self
                 .trusted_domain_suffixes
                 .iter()
@@ -160,7 +194,7 @@ impl UriValidator {
     /// Check if a host matches any trusted domain suffix.
     #[must_use]
     pub fn is_trusted_domain(&self, host: &str) -> bool {
-        let host_lower = host.to_lowercase();
+        let host_lower = host.trim_end_matches('.').to_lowercase();
         self.trusted_domain_suffixes
             .iter()
             .any(|suffix| domain_matches_suffix(&host_lower, suffix))
@@ -183,14 +217,44 @@ fn parse_url_parts(url: &str) -> crate::Result<UrlParts> {
         }));
     }
 
+    // BS-6: Reject UNC-style paths (`\\host\share`). These have no scheme
+    // separator and can be interpreted as Windows file shares by some HTTP
+    // stacks.
+    if url.starts_with("\\\\") {
+        return Err(Error::Blocked(DenyReason::UrlParseError {
+            detail: String::from("UNC-style path not allowed"),
+        }));
+    }
+
+    // BS-5: Normalize backslashes to forward slashes before authority
+    // extraction. This prevents parser differential attacks where the URI
+    // validator sees one host but the HTTP client interprets `\` as `/` and
+    // connects to a different host. We do this on a working copy (after
+    // splitting off the scheme) so the original scheme separator `://` is
+    // unaffected.
+    //
+    // BS-3: Reject embedded NUL/CR/LF/percent-encoded NUL/CRLF early. Doing
+    // it before scheme split catches CRLF in the scheme too.
+    if has_prohibited_control_chars(url) {
+        return Err(Error::Blocked(DenyReason::HostnameInvalid {
+            reason: String::from("URL contains prohibited control characters (NUL/CR/LF)"),
+        }));
+    }
+
     // Extract scheme
-    let (scheme, rest) = if let Some(idx) = url.find("://") {
+    let (scheme, rest_owned) = if let Some(idx) = url.find("://") {
         let scheme = &url[..idx];
         let rest = &url[idx + 3..];
-        (Some(String::from(scheme)), rest)
+        // BS-5: backslash -> slash normalization in the post-scheme part only.
+        let rest_normalized = rest.replace('\\', "/");
+        (Some(String::from(scheme)), rest_normalized)
     } else {
-        (None, url)
+        // No `://`. Still normalize backslashes for the rare case of
+        // protocol-relative-style inputs that reach here.
+        (None, url.replace('\\', "/"))
     };
+
+    let rest = rest_owned.as_str();
 
     // Strip userinfo (everything before @ that is not percent-encoded)
     let authority = rest.split('/').next().unwrap_or(rest);
@@ -230,10 +294,64 @@ fn parse_url_parts(url: &str) -> crate::Result<UrlParts> {
         }));
     }
 
+    // BS-3 (defence-in-depth): re-check the extracted host for any
+    // surviving control characters or percent-encoded NUL/CRLF.
+    if host_has_prohibited_chars(host) {
+        return Err(Error::Blocked(DenyReason::HostnameInvalid {
+            reason: String::from("host contains prohibited control characters (NUL/CR/LF)"),
+        }));
+    }
+
     Ok(UrlParts {
         scheme,
         host: String::from(host),
     })
+}
+
+/// Detect raw control bytes anywhere in a URL string.
+fn has_prohibited_control_chars(s: &str) -> bool {
+    s.bytes().any(|b| b == 0 || b == b'\r' || b == b'\n')
+}
+
+/// Detect prohibited characters in an extracted host component.
+/// Includes raw NUL/CR/LF as well as percent-encoded forms `%00`, `%0d`, `%0a`.
+fn host_has_prohibited_chars(host: &str) -> bool {
+    if has_prohibited_control_chars(host) {
+        return true;
+    }
+    let lower = host.to_ascii_lowercase();
+    lower.contains("%00") || lower.contains("%0d") || lower.contains("%0a")
+}
+
+/// Extract the pseudo-scheme from a URL that has a `:` before any `/` but no `://`.
+/// Used for BS-2 to reject `javascript:alert(1)`, `data:text/html,...`,
+/// `http:host/path`. Returns `None` if the URL has no `:` before the first `/`.
+fn pseudo_scheme(url: &str) -> Option<&str> {
+    let colon_idx = url.find(':')?;
+    let slash_idx = url.find('/');
+    match slash_idx {
+        Some(s) if s < colon_idx => None,
+        _ => {
+            let candidate = &url[..colon_idx];
+            // A scheme per RFC 3986 begins with ALPHA and consists of
+            // ALPHA / DIGIT / "+" / "-" / ".". Reject empty.
+            if candidate.is_empty() {
+                return None;
+            }
+            let first = candidate.as_bytes()[0];
+            if !first.is_ascii_alphabetic() {
+                return None;
+            }
+            if candidate
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.')
+            {
+                Some(candidate)
+            } else {
+                None
+            }
+        }
+    }
 }
 
 /// Detect userinfo bypass attempts: URL-encoded `@` (`%40`) before the real host.
@@ -275,7 +393,12 @@ fn has_userinfo_bypass(url: &str) -> bool {
 /// Boundary-aware domain suffix matching.
 /// "api.core.windows.net" matches suffix "core.windows.net"
 /// "notcore.windows.net" does NOT match suffix "core.windows.net"
+///
+/// BS-4: Both `host` and `suffix` are normalized by stripping any trailing dot
+/// so `metadata.google.internal.` matches the suffix `google.internal`.
 fn domain_matches_suffix(host: &str, suffix: &str) -> bool {
+    let host = host.trim_end_matches('.');
+    let suffix = suffix.trim_end_matches('.');
     let suffix = suffix.strip_prefix('.').unwrap_or(suffix);
     if host == suffix {
         return true;
@@ -290,15 +413,17 @@ fn domain_matches_suffix(host: &str, suffix: &str) -> bool {
 }
 
 /// Parse a host string as an IP address, handling bracket notation.
+///
+/// Uses the strict parser from `cidr.rs` which rejects octal, hex, and
+/// shorthand IPv4 forms. Ambiguous forms must be detected with
+/// `crate::cidr::is_ambiguous_ip` before reaching this function.
 fn parse_host_as_ip(host: &str) -> crate::Result<IpAddr> {
     let inner = if host.starts_with('[') && host.ends_with(']') {
         &host[1..host.len() - 1]
     } else {
         host
     };
-    inner
-        .parse::<IpAddr>()
-        .map_err(|e| Error::Parse(alloc::format!("failed to parse IP: {e}")))
+    crate::cidr::parse_ip(inner)
 }
 
 #[cfg(test)]
@@ -326,8 +451,203 @@ mod tests {
             v.validate_url("gopher://example.com", None),
             Err(Error::Blocked(DenyReason::SchemeNotAllowed { .. }))
         ));
-        // file:/// has empty host which triggers UrlParseError first
+        // file:/// has scheme `file` not in allowlist; rejected with SchemeNotAllowed
+        // before the empty-host check now (consistent with other disallowed schemes).
         assert!(v.validate_url("file:///etc/passwd", None).is_err());
+    }
+
+    // ---------- Blind spot fixes ----------
+
+    #[test]
+    fn bs1_ambiguous_decimal_ip_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http://2130706433/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::AmbiguousIpEncoding { .. })
+        ));
+    }
+
+    #[test]
+    fn bs1_ambiguous_octal_ip_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http://0177.0.0.1/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::AmbiguousIpEncoding { .. })
+        ));
+    }
+
+    #[test]
+    fn bs1_ambiguous_hex_ip_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http://0x7f000001/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::AmbiguousIpEncoding { .. })
+        ));
+        let result = v.validate_url("http://0x7f.0.0.1/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::AmbiguousIpEncoding { .. })
+        ));
+    }
+
+    #[test]
+    fn bs1_ambiguous_shorthand_ip_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http://127.1/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::AmbiguousIpEncoding { .. })
+        ));
+    }
+
+    #[test]
+    fn bs2_javascript_url_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("javascript:alert(1)", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::SchemeNotAllowed { .. })
+        ));
+    }
+
+    #[test]
+    fn bs2_data_url_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("data:text/html,<script>alert(1)</script>", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::SchemeNotAllowed { .. })
+        ));
+    }
+
+    #[test]
+    fn bs2_http_without_double_slash_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http:host/path", None);
+        // `http:host/path` is treated as scheme `http` with no `//` separator;
+        // the pseudo-scheme detector reports it as SchemeNotAllowed.
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::SchemeNotAllowed { .. })
+        ));
+    }
+
+    #[test]
+    fn bs2_bare_hostname_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("example.com", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::SchemeRequired)
+        ));
+    }
+
+    #[test]
+    fn bs3_null_byte_in_host_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http://evil.com%00.trusted.com/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::HostnameInvalid { .. })
+        ));
+    }
+
+    #[test]
+    fn bs3_crlf_in_url_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("http://example.com%0d%0aHost:%20169.254.169.254", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::HostnameInvalid { .. })
+        ));
+    }
+
+    #[test]
+    fn bs3_raw_nul_in_url_rejected() {
+        let v = UriValidator::new();
+        let bad = "http://example\0.com/";
+        let result = v.validate_url(bad, None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::HostnameInvalid { .. })
+        ));
+    }
+
+    #[test]
+    fn bs4_trailing_dot_does_not_bypass_suffix_deny() {
+        let mut v = UriValidator::new();
+        v.add_denied_suffixes(&["google.internal"]);
+
+        // Without the fix, the trailing dot would bypass the suffix match.
+        let result = v.validate_url("http://metadata.google.internal./", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::DomainSuffixDenied { .. })
+        ));
+    }
+
+    #[test]
+    fn bs4_trailing_dot_in_suffix_normalized() {
+        let mut v = UriValidator::new();
+        // Suffix configured with a trailing dot should still match canonical hosts.
+        v.add_denied_suffixes(&["google.internal."]);
+
+        let result = v.validate_url("http://metadata.google.internal/", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::DomainSuffixDenied { .. })
+        ));
+    }
+
+    #[test]
+    fn bs5_backslash_userinfo_bypass_rejected() {
+        // `http://trusted.com\@evil.com/` -- some HTTP clients parse `\` as `/`.
+        // With backslash normalized to `/`, the host becomes `trusted.com`,
+        // followed by `/@evil.com`. The userinfo bypass detector then flags
+        // the `@` after the path-like prefix is gone.
+        // The key property tested: the validator does NOT see `evil.com` as
+        // the host (which would happen without normalization).
+        let mut v = UriValidator::new();
+        v.add_trusted_suffixes(&["trusted.com"]);
+        // After normalization, host should be `trusted.com`, which is allowed.
+        let result = v.validate_url("http://trusted.com\\@evil.com/", None);
+        assert!(result.is_ok(), "got {result:?}");
+    }
+
+    #[test]
+    fn bs5_backslash_to_internal_ip_normalized() {
+        // `http://127.0.0.1\@trusted.com/` should resolve to host `127.0.0.1`
+        // after normalization, blocking on bare-IP IMDS/loopback policy.
+        let policy = PolicyBuilder::external_only().build();
+        let v = UriValidator::new();
+        let result = v.validate_url("http://127.0.0.1\\@trusted.com/", Some(&policy));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::BareIpDeniedBeforeScheme { .. })
+        ));
+    }
+
+    #[test]
+    fn bs6_unc_path_rejected() {
+        let v = UriValidator::new();
+        let result = v.validate_url("\\\\evil.com\\share", None);
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Blocked(DenyReason::UrlParseError { .. })
+        ));
+    }
+
+    #[test]
+    fn bs6_protocol_relative_url_rejected() {
+        let v = UriValidator::new();
+        // `//127.0.0.1/` has an empty authority before the host (since `//`
+        // is the separator and the host is empty after splitting on `/`)
+        // -> rejected as SchemeRequired (no scheme) or empty host.
+        let result = v.validate_url("//127.0.0.1/", None);
+        assert!(result.is_err());
     }
 
     #[test]

@@ -14,6 +14,7 @@ Async TCP guard with DNS-pinned dialing for SSRF prevention. Resolves hostnames,
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `hickory` | no | Enables `HickoryDns` backend via `hickory-resolver` |
+| `e2e` | no | Internal: pulls in `testcontainers` + `reqwest` (rustls-tls) + `hickory` so the SSRF Tier 2 e2e tests in `tests/ssrf_e2e.rs` can spin up CoreDNS + WireMock containers. Not intended for downstream consumers. |
 
 ## Public API
 

@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-gopher"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "gopher://127.0.0.1:6379/_INFO"
+    }
+  }
+}
