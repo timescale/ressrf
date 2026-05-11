@@ -388,14 +388,14 @@ func TestRedirectChainVectors(t *testing.T) {
 
 	var vectors struct {
 		TestCases []struct {
-			Name              string   `json:"name"`
-			Chain             []string `json:"chain"`
-			PolicyPreset      string   `json:"policy_preset"`
-			Expected          string   `json:"expected"`
-			BlockedAtHop      *int     `json:"blocked_at_hop"`
-			MaxRedirects      *int     `json:"max_redirects"`
-			AllowCIDRs        []string `json:"allow_cidrs"`
-			AllowPlaintextHTTP bool    `json:"allow_plaintext_http"`
+			Name               string   `json:"name"`
+			Chain              []string `json:"chain"`
+			PolicyPreset       string   `json:"policy_preset"`
+			Expected           string   `json:"expected"`
+			BlockedAtHop       *int     `json:"blocked_at_hop"`
+			MaxRedirects       *int     `json:"max_redirects"`
+			AllowCIDRs         []string `json:"allow_cidrs"`
+			AllowPlaintextHTTP bool     `json:"allow_plaintext_http"`
 		} `json:"test_cases"`
 	}
 	if err := json.Unmarshal(data, &vectors); err != nil {
