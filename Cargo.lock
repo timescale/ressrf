@@ -2005,6 +2005,7 @@ dependencies = [
  "pin-project-lite",
  "ressrf-core",
  "ressrf-tcp",
+ "serde_json",
  "thiserror",
  "tokio",
  "tower-layer",
