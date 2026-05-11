@@ -16,7 +16,7 @@ edition = "2021"
 rust-version = "1.75"
 license = "MIT"
 authors = ["Mostafa Moradian <mstfmoradian@gmail.com>"]
-repository = "https://github.com/mostafa/ressrf"
+repository = "https://github.com/timescale/ressrf"
 categories = ["network-programming", "web-programming"]
 keywords = ["ssrf", "security", "network", "validation"]
 

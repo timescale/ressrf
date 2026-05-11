@@ -5,7 +5,7 @@ Go package for SSRF prevention, powered by the `ressrf-core` engine running in a
 ## Installation
 
 ```bash
-go get github.com/mostafa/ressrf/go/ressrf
+go get github.com/timescale/ressrf/go/ressrf
 ```
 
 Requires Go 1.26+.
@@ -238,7 +238,7 @@ import (
     "log/slog"
     "net/http"
 
-    "github.com/mostafa/ressrf/go/ressrf"
+    "github.com/timescale/ressrf/go/ressrf"
 )
 
 func main() {

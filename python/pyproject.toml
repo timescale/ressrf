@@ -34,7 +34,7 @@ all = ["httpx>=0.24", "requests>=2.28", "paramiko>=3.0"]
 dev = ["pytest>=7", "pytest-asyncio>=0.21"]
 
 [project.urls]
-Repository = "https://github.com/mostafa/ressrf"
+Repository = "https://github.com/timescale/ressrf"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]

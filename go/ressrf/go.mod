@@ -1,4 +1,4 @@
-module github.com/mostafa/ressrf/go/ressrf
+module github.com/timescale/ressrf/go/ressrf
 
 go 1.26.3
 

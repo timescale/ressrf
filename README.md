@@ -2,7 +2,7 @@
     <img src="assets/ressrf-logo.png" alt="ressrf" width="200">
 </p>
 
-[![CI](https://github.com/mostafa/ressrf/actions/workflows/ci.yml/badge.svg)](https://github.com/mostafa/ressrf/actions/workflows/ci.yml)
+[![CI](https://github.com/timescale/ressrf/actions/workflows/ci.yml/badge.svg)](https://github.com/timescale/ressrf/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 A multi-platform SSRF prevention library with a fuzz-tested Rust core, pluggable protocol transports, pluggable audit logging, and bindings for Go, Python, and Node.js.
@@ -113,7 +113,7 @@ try {
 | Language | Command | Requirements |
 |----------|---------|--------------|
 | Rust | `cargo add ressrf-core` | Rust 1.75+ |
-| Go | `go get github.com/mostafa/ressrf/go/ressrf` | Go 1.26+ |
+| Go | `go get github.com/timescale/ressrf/go/ressrf` | Go 1.26+ |
 | Python | `pip install ressrf` | Python 3.10+ |
 | Node.js | `npm install ressrf` | Node.js 20+ |
 
