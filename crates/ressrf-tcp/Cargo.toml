@@ -32,3 +32,4 @@ reqwest = { version = "0.12", optional = true, default-features = false, feature
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+ressrf-http = { path = "../ressrf-http" }
