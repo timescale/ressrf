@@ -1,0 +1,96 @@
+version: 2
+
+# Explicit Dependabot configuration.
+#
+# Without this file, Dependabot's auto-generated dependency-graph jobs
+# for `uv` and `gomod` send `target-branch: refs/heads/main` (the full
+# ref) instead of the short branch name `main`. The updater then aborts
+# with `branch_not_found` even though `main` exists -- this happened
+# right after the repo was transferred to the timescale org. Pinning
+# `target-branch: main` here makes every Dependabot job use the
+# canonical short name.
+#
+# Update PRs are intentionally weekly, rate-limited, and grouped to
+# keep noise low. Commit prefixes match the Conventional Commits
+# style already in use.
+
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      rust-deps:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: gomod
+    directory: /go/ressrf
+    target-branch: main
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      go-deps:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: uv
+    directory: /python
+    target-branch: main
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: npm
+    directory: /node
+    target-branch: main
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      node-deps:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      ci-actions:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
