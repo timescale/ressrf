@@ -43,3 +43,24 @@ def ssrf_techniques_vectors() -> list[dict]:
     with open(VECTORS_DIR / "ssrf_techniques.json") as f:
         data = json.load(f)
     return data["cases"]
+
+
+@pytest.fixture
+def audit_event_vectors() -> list[dict]:
+    with open(VECTORS_DIR / "audit_events.json") as f:
+        data = json.load(f)
+    return data["test_cases"]
+
+
+@pytest.fixture
+def redirect_chain_vectors() -> list[dict]:
+    with open(VECTORS_DIR / "redirect_chains.json") as f:
+        data = json.load(f)
+    return data["test_cases"]
+
+
+@pytest.fixture
+def ipv4_ipv6_mapping_vectors() -> list[dict]:
+    with open(VECTORS_DIR / "ipv4_ipv6_mapping.json") as f:
+        data = json.load(f)
+    return data["cases"]
