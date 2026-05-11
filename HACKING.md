@@ -121,10 +121,21 @@ All languages load shared test vectors from `tests/vectors/` to guarantee identi
 | `policy_decisions.json` | Policy presets, allow/deny, cloud providers |
 | `url_validation.json` | URI structure, scheme allowlist, domain matching |
 | `url_rules.json` | Host/path glob, regex deny, `bypass_ip_check` |
+| `ssrf_techniques.json` | SSRF bypass technique taxonomy: IP representation tricks (decimal/octal/hex/shorthand), IPv6 variants (mapped, 6to4, Teredo, NAT64, AWS IMDSv6), URL parser confusion (userinfo, NUL/CRLF, backslash, UNC, trailing dot, scheme-less), protocol smuggling, cloud metadata, Unicode/IDN |
 | `redirect_chains.json` | Multi-hop redirect re-validation |
 | `audit_events.json` | Audit event serialization and field structure |
 
 Each file contains an array of test cases with `description`, input fields, and `expected` outcome. When adding a new vector, verify it passes in all four languages before opening a PR.
+
+### Tier 2 e2e tests (Docker required)
+
+`crates/ressrf-tcp/tests/ssrf_e2e.rs` exercises bypass techniques through the full network stack: `SafeConnector` -> `SafeResolver` -> `Policy`, with a hickory-based DNS backend pointed at a CoreDNS testcontainer plus a WireMock testcontainer for redirect chains. It is gated behind the `e2e` Cargo feature so the regular workspace test matrix stays hermetic on macOS / Windows.
+
+```bash
+cargo test --features e2e -p ressrf-tcp --test ssrf_e2e
+```
+
+The container assets (CoreDNS Corefile + zone, WireMock stub mappings) live under `tests/containers/` and are documented in `tests/containers/README.md`. Tests guard themselves with the `skip_without_docker!` macro and pass with a printed skip notice on machines without a Linux-capable Docker daemon. CI runs the full matrix on Ubuntu via the dedicated `e2e-tests` job in `.github/workflows/ci.yml`.
 
 ## Fuzzing
 
