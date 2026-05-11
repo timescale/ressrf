@@ -268,7 +268,9 @@ fn audit_event_vectors() {
                 let preset = parse_preset(preset_str);
                 let sink = Arc::new(CollectingSink::new());
 
-                let has_sink = !config.get("audit_sink").is_some_and(|v| v.is_null());
+                let has_sink = !config
+                    .get("audit_sink")
+                    .is_some_and(serde_json::Value::is_null);
 
                 if !has_sink {
                     let _policy = PolicyBuilder::new(preset).build();
@@ -318,15 +320,18 @@ fn audit_event_vectors() {
                         fields["preset"].as_str().unwrap(),
                         "{name}: preset mismatch"
                     );
-                    if let Some(min) = fields.get("deny_count_min").and_then(|v| v.as_u64()) {
+                    if let Some(min) = fields
+                        .get("deny_count_min")
+                        .and_then(serde_json::Value::as_u64)
+                    {
                         assert!(
-                            *deny_count >= min as usize,
+                            *deny_count >= usize::try_from(min).unwrap(),
                             "{name}: deny_count {deny_count} < min {min}"
                         );
                     }
                     assert_eq!(
                         *allow_count,
-                        fields["allow_count"].as_u64().unwrap() as usize,
+                        usize::try_from(fields["allow_count"].as_u64().unwrap()).unwrap(),
                         "{name}: allow_count mismatch"
                     );
                 }
@@ -356,7 +361,9 @@ fn redirect_chain_vectors() {
             .collect();
         let preset = parse_preset(case["policy_preset"].as_str().unwrap());
         let expected = case["expected"].as_str().unwrap();
-        let max_redirects = case.get("max_redirects").and_then(|v| v.as_u64());
+        let max_redirects = case
+            .get("max_redirects")
+            .and_then(serde_json::Value::as_u64);
 
         let mut builder = PolicyBuilder::new(preset);
 
@@ -367,7 +374,7 @@ fn redirect_chain_vectors() {
 
         if case
             .get("allow_plaintext_http")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false)
         {
             builder.protocol_rules(ressrf_core::policy::ProtocolRules {
@@ -379,7 +386,7 @@ fn redirect_chain_vectors() {
         let policy = builder.build();
         let validator = UriValidator::new();
 
-        let limit = max_redirects.map(|m| m as usize).unwrap_or(usize::MAX);
+        let limit = max_redirects.map_or(usize::MAX, |m| usize::try_from(m).unwrap());
         let mut blocked_at: Option<usize> = None;
 
         // Hop 0 is the origin URL; redirect targets start at hop 1.
@@ -412,8 +419,8 @@ fn redirect_chain_vectors() {
             "blocked" => {
                 let expected_hop = case
                     .get("blocked_at_hop")
-                    .and_then(|v| v.as_u64())
-                    .map(|h| h as usize);
+                    .and_then(serde_json::Value::as_u64)
+                    .map(|h| usize::try_from(h).unwrap());
                 assert!(
                     blocked_at.is_some(),
                     "{name}: expected blocked, got allowed"
