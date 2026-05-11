@@ -106,7 +106,8 @@ class TestSsrfTechniques:
                 try:
                     policy.validate_url(url)
                 except (RessrfBlockedError, ValueError) as e:
-                    pytest.fail(f"[{category}] {name}: expected allowed for {url!r}, got {e}")
+                    pytest.fail(
+                        f"[{category}] {name}: expected allowed for {url!r}, got {e}")
             elif expected == "blocked":
                 with pytest.raises((RessrfBlockedError, ValueError)):
                     policy.validate_url(url)
