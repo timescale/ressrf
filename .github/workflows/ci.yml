@@ -260,3 +260,34 @@ jobs:
       - name: Type check
         working-directory: node
         run: npx tsc --noEmit
+
+  e2e-tests:
+    name: SSRF E2E (Tier 2, Docker)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    # Linux only because the regular GitHub-hosted macOS/Windows runners
+    # lack a Docker daemon. The Tier 2 SSRF tests spin up CoreDNS and
+    # WireMock containers via testcontainers-rs to verify DNS-based and
+    # redirect-based bypasses end-to-end. The `e2e` Cargo feature is
+    # off by default so the standard test-rust matrix above stays
+    # hermetic on macOS / Windows.
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # Different feature set than the main test-rust job; cache key
+          # is namespaced so the e2e build artifacts do not pollute or
+          # invalidate the default-feature cache.
+          key: e2e
+      - name: Pre-pull container images
+        # Pulling up front avoids per-test pull races and surfaces
+        # registry / network failures as a single explicit step.
+        run: |
+          docker pull coredns/coredns:1.11.3
+          docker pull wiremock/wiremock:3.9.1
+      - name: Run Tier 2 e2e tests
+        run: cargo test --features e2e -p ressrf-tcp --test ssrf_e2e --locked
