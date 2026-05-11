@@ -15,7 +15,11 @@ use ressrf_core::{AuditEvent, AuditSink, Cidr, Policy, UriValidator};
 // Exception
 // ---------------------------------------------------------------------------
 
-pyo3::create_exception!(ressrf._core, RessrfBlockedError, pyo3::exceptions::PyException);
+pyo3::create_exception!(
+    ressrf._core,
+    RessrfBlockedError,
+    pyo3::exceptions::PyException
+);
 
 fn error_to_py(err: Error) -> PyErr {
     match err {
@@ -123,11 +127,7 @@ impl CorePolicyBuilder {
     }
 
     #[pyo3(signature = (allow_plaintext_http = false, require_https = true))]
-    fn protocol_rules(
-        &mut self,
-        allow_plaintext_http: bool,
-        require_https: bool,
-    ) -> PyResult<()> {
+    fn protocol_rules(&mut self, allow_plaintext_http: bool, require_https: bool) -> PyResult<()> {
         let builder = self
             .inner
             .as_mut()
@@ -248,9 +248,7 @@ impl CorePolicy {
             .map(|s| s.parse::<IpAddr>())
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| PyValueError::new_err(format!("invalid IP: {e}")))?;
-        self.inner
-            .is_network_allowed(&parsed)
-            .map_err(error_to_py)
+        self.inner.is_network_allowed(&parsed).map_err(error_to_py)
     }
 
     fn validate_url(&self, url: &str) -> PyResult<()> {
@@ -321,7 +319,9 @@ impl CoreUriValidator {
     #[pyo3(signature = (url, policy = None))]
     fn validate_url(&self, url: &str, policy: Option<&CorePolicy>) -> PyResult<()> {
         let policy_ref = policy.map(|p| p.inner.as_ref());
-        self.inner.validate_url(url, policy_ref).map_err(error_to_py)
+        self.inner
+            .validate_url(url, policy_ref)
+            .map_err(error_to_py)
     }
 
     fn is_trusted_domain(&self, domain: &str) -> bool {
