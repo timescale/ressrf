@@ -78,6 +78,42 @@ class TestUrlValidation:
                     policy.validate_url(url)
 
 
+class TestSsrfTechniques:
+    """End-to-end SSRF bypass technique vectors.
+
+    Walks every URL in tests/vectors/ssrf_techniques.json through the
+    PyO3-backed `Policy.validate_url` and asserts the expected
+    allow/block decision. Cases that need denied/trusted domain
+    suffix configuration are skipped (mirroring the
+    `TestUrlValidation` pattern) since those knobs are not exposed
+    on the Python `PolicyBuilder` surface yet.
+    """
+
+    def test_all_vectors(self, ssrf_techniques_vectors: list[dict]) -> None:
+        policy = Policy.external_only()
+
+        for case in ssrf_techniques_vectors:
+            name = case["name"]
+            url = case["url"]
+            expected = case["expected"]
+            category = case.get("category", "uncategorized")
+
+            has_custom_config = "denied_suffixes" in case or "trusted_suffixes" in case
+            if has_custom_config:
+                continue
+
+            if expected == "allowed":
+                try:
+                    policy.validate_url(url)
+                except (RessrfBlockedError, ValueError) as e:
+                    pytest.fail(f"[{category}] {name}: expected allowed for {url!r}, got {e}")
+            elif expected == "blocked":
+                with pytest.raises((RessrfBlockedError, ValueError)):
+                    policy.validate_url(url)
+            else:
+                pytest.fail(f"{name}: unknown expected value {expected!r}")
+
+
 class TestUrlRules:
     """Test URL rules using shared vectors."""
 
