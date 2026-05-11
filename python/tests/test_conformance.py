@@ -199,9 +199,9 @@ class TestAuditEvents:
                     f"{name}: preset mismatch"
                 )
                 if "deny_count_min" in fields:
-                    assert created[0].fields["deny_count"] >= fields["deny_count_min"], (
-                        f"{name}: deny_count too low"
-                    )
+                    assert (
+                        created[0].fields["deny_count"] >= fields["deny_count_min"]
+                    ), f"{name}: deny_count too low"
                 assert created[0].fields["allow_count"] == fields["allow_count"], (
                     f"{name}: allow_count mismatch"
                 )
@@ -262,9 +262,7 @@ class TestRedirectChains:
                 )
             elif expected == "blocked":
                 expected_hop = case.get("blocked_at_hop")
-                assert blocked_at is not None, (
-                    f"{name}: expected blocked, got allowed"
-                )
+                assert blocked_at is not None, f"{name}: expected blocked, got allowed"
                 if expected_hop is not None:
                     assert blocked_at == expected_hop, (
                         f"{name}: expected blocked at hop {expected_hop}, "
