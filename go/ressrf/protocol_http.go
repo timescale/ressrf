@@ -11,8 +11,8 @@ import (
 // HTTPTransport returns an http.RoundTripper that enforces the SSRF policy
 // on every outgoing HTTP request. It wraps the provided base transport
 // (or http.DefaultTransport if nil), preserving proxy settings, TLS config,
-// and connection pooling while injecting the Control hook and redirect
-// re-validation.
+// and connection pooling while replacing the dialer with an SSRF-protected
+// dialer.
 func (p *Policy) HTTPTransport(base http.RoundTripper) http.RoundTripper {
 	if base == nil {
 		base = http.DefaultTransport
@@ -61,15 +61,12 @@ func (t *ssrfTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func (p *Policy) httpDialContext(
-	original func(ctx context.Context, network, addr string) (net.Conn, error),
+	_ func(ctx context.Context, network, addr string) (net.Conn, error),
 ) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	if original == nil {
-		dialer := &net.Dialer{
-			Timeout:   defaultDialTimeout,
-			KeepAlive: 30 * time.Second,
-			Control:   p.controlFunc(),
-		}
-		return dialer.DialContext
+	dialer := &net.Dialer{
+		Timeout:   defaultDialTimeout,
+		KeepAlive: 30 * time.Second,
+		Control:   p.controlFunc(),
 	}
 
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -78,13 +75,20 @@ func (p *Policy) httpDialContext(
 			if err != nil {
 				host = addr
 			}
-			url := fmt.Sprintf("https://%s", host)
+			url := destinationURLForHost(host)
 			if err := p.IsAllowed(ctx, url); err != nil {
 				return nil, err
 			}
 		}
-		return original(ctx, network, addr)
+		return dialer.DialContext(ctx, network, addr)
 	}
+}
+
+func destinationURLForHost(host string) string {
+	if ip := net.ParseIP(host); ip != nil && ip.To4() == nil {
+		return fmt.Sprintf("https://[%s]", host)
+	}
+	return fmt.Sprintf("https://%s", host)
 }
 
 func (p *Policy) checkRedirect(req *http.Request, via []*http.Request) error {
