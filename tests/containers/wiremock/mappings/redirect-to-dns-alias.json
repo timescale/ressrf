@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-dns-alias"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://wildcard-loopback.ssrf.test/"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-to-mapped-imds"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://[::ffff:169.254.169.254]/"
+    }
+  }
+}

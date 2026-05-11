@@ -1,0 +1,5 @@
+. {
+    file /zones/ssrf.zone ssrf.test
+    log
+    errors
+}

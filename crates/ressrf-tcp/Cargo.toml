@@ -16,6 +16,10 @@ workspace = true
 [features]
 default = []
 hickory = ["hickory-resolver"]
+# Tier 2 e2e tests that spin up CoreDNS + WireMock containers via
+# testcontainers-rs. Requires Docker. Disabled by default so the
+# regular `cargo test` matrix stays hermetic.
+e2e = ["dep:testcontainers", "dep:reqwest", "hickory"]
 
 [dependencies]
 ressrf-core = { workspace = true, features = ["std"] }
@@ -23,6 +27,8 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 hickory-resolver = { version = "0.26", optional = true }
+testcontainers = { version = "0.27", optional = true }
+reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

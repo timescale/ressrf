@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-ok"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://public-ok.ssrf.test/"
+    }
+  }
+}

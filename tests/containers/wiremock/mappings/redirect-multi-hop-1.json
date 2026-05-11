@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/multi-hop-1"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "/multi-hop-2"
+    }
+  }
+}

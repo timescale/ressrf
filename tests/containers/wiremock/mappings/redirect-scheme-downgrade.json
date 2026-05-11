@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/redirect-scheme-downgrade"
+  },
+  "response": {
+    "status": 302,
+    "headers": {
+      "Location": "http://example.com/insecure"
+    }
+  }
+}
