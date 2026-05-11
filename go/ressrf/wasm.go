@@ -18,6 +18,9 @@ import (
 //go:embed core.wasm
 var coreWasm []byte
 
+var wasmRuntimeConfig = wazero.NewRuntimeConfig().
+	WithCompilationCache(wazero.NewCompilationCache())
+
 // instance wraps a single WASM module instance with its own runtime and memory.
 type instance struct {
 	rt             wazero.Runtime
@@ -35,7 +38,7 @@ type instance struct {
 func newInstance(ctx context.Context, sink AuditSink) (*instance, error) {
 	inst := &instance{auditSink: sink}
 
-	rt := wazero.NewRuntime(ctx)
+	rt := wazero.NewRuntimeWithConfig(ctx, wasmRuntimeConfig)
 	inst.rt = rt
 
 	wasi_snapshot_preview1.MustInstantiate(ctx, rt)

@@ -35,6 +35,15 @@ func (p *Policy) DialContext(ctx context.Context, network, address string) (net.
 
 // controlFunc returns a syscall.RawConn Control function that checks
 // the resolved IP against the policy before allowing connect().
+//
+// The control hook runs after Go's net.Dialer resolves DNS, so the
+// address parameter is always a resolved IP (not a hostname). The
+// check uses IsNetworkAllowed (IP-level) rather than IsAllowed
+// (URL-level) because the TCP layer has no URL context and the URI
+// validator's scheme allowlist would reject synthetic tcp:// URLs.
+//
+// If the address is unexpectedly a hostname (not a literal IP), the
+// connection is rejected as a defensive measure.
 func (p *Policy) controlFunc() func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
 		if Disabled() {
@@ -48,21 +57,15 @@ func (p *Policy) controlFunc() func(network, address string, c syscall.RawConn) 
 
 		ip := net.ParseIP(host)
 		if ip == nil {
-			return nil
+			return &BlockedError{
+				Reason: fmt.Sprintf("non-IP address in control hook: %s", host),
+				URL:    address,
+			}
 		}
 
-		cidr := ip.String()
-		if ip.To4() != nil {
-			cidr += "/32"
-		} else {
-			cidr += "/128"
-		}
-
-		url := fmt.Sprintf("tcp://%s", address)
-		if err := p.IsAllowed(context.Background(), url); err != nil {
+		if err := p.IsNetworkAllowed(context.Background(), []string{ip.String()}); err != nil {
 			return err
 		}
-		_ = cidr
 		return nil
 	}
 }
