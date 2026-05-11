@@ -39,7 +39,12 @@ GCP_CLOUD_URL = "https://www.gstatic.com/ipranges/cloud.json"
 GCP_GOOG_URL = "https://www.gstatic.com/ipranges/goog.json"
 
 TIER_1B_NAMES = {"AS112-v4", "AMT", "Direct Delegation AS112"}
-TIER_1B_CIDRS = {"192.31.196.0/24", "192.52.193.0/24", "192.175.48.0/24", "192.88.99.0/24"}
+TIER_1B_CIDRS = {
+    "192.31.196.0/24",
+    "192.52.193.0/24",
+    "192.175.48.0/24",
+    "192.88.99.0/24",
+}
 
 
 def fetch_url(url: str) -> bytes:
@@ -63,7 +68,9 @@ def parse_iana_csv(raw: bytes, version: int) -> list[dict[str, Any]]:
         address_block = row.get("Address Block", row.get("Address  Block", "")).strip()
         name = row.get("Name", "").strip()
         rfc_ref = row.get("RFC", row.get("Reference", "")).strip()
-        globally_reachable = row.get("Globally Reachable", row.get("Global", "")).strip().lower()
+        globally_reachable = (
+            row.get("Globally Reachable", row.get("Global", "")).strip().lower()
+        )
 
         if not address_block:
             continue
@@ -97,11 +104,13 @@ def parse_iana_csv(raw: bytes, version: int) -> list[dict[str, Any]]:
             entry_name = f"{name} {tier_label}".strip()
             rfc_str = rfc_ref.split(",")[0].strip("[] ") if rfc_ref else None
 
-            entries.append({
-                "cidr": part,
-                "rfc": rfc_str if rfc_str else None,
-                "name": entry_name,
-            })
+            entries.append(
+                {
+                    "cidr": part,
+                    "rfc": rfc_str if rfc_str else None,
+                    "name": entry_name,
+                }
+            )
 
     return entries
 
@@ -145,7 +154,10 @@ def fetch_aws_ranges() -> dict[str, list[str]]:
 
     total = sum(len(v) for v in service_map.values())
     print(f"  AWS: {total} prefixes across {len(service_map)} services")
-    return {"sync_token": data.get("syncToken", ""), "prefixes": dict(sorted(service_map.items()))}
+    return {
+        "sync_token": data.get("syncToken", ""),
+        "prefixes": dict(sorted(service_map.items())),
+    }
 
 
 def fetch_gcp_ranges() -> dict[str, list[str]]:
@@ -185,12 +197,17 @@ def fetch_azure_ranges() -> dict[str, list[str]]:
     discovery_url = "https://www.microsoft.com/en-us/download/details.aspx?id=56519"
     try:
         page = fetch_url(discovery_url).decode("utf-8", errors="replace")
-        match = re.search(r'https://download\.microsoft\.com/[^"\']+ServiceTags_Public_\d+\.json', page)
+        match = re.search(
+            r'https://download\.microsoft\.com/[^"\']+ServiceTags_Public_\d+\.json',
+            page,
+        )
         if match:
             json_url = match.group(0)
             data = json.loads(fetch_url(json_url))
         else:
-            print("  WARNING: Could not find Azure ServiceTags URL, skipping service ranges")
+            print(
+                "  WARNING: Could not find Azure ServiceTags URL, skipping service ranges"
+            )
             return {"prefixes": {}}
     except Exception as e:
         print(f"  WARNING: Azure fetch failed ({e}), skipping service ranges")
@@ -252,7 +269,9 @@ def validate_domain_file(path: Path) -> list[str]:
             try:
                 ipaddress.ip_network(cidr, strict=False)
             except ValueError as e:
-                errors.append(f"{path.name}: invalid service CIDR '{cidr}' in {svc}: {e}")
+                errors.append(
+                    f"{path.name}: invalid service CIDR '{cidr}' in {svc}: {e}"
+                )
 
     return errors
 
@@ -262,7 +281,9 @@ def cross_check_csp_metadata(ip_ranges: dict) -> list[str]:
     errors = []
     csp_cidrs = {
         entry["cidr"]
-        for entry in ip_ranges.get("tiers", {}).get("csp_metadata", {}).get("entries", [])
+        for entry in ip_ranges.get("tiers", {})
+        .get("csp_metadata", {})
+        .get("entries", [])
     }
 
     provider_deny_cidrs: set[str] = set()
@@ -274,7 +295,9 @@ def cross_check_csp_metadata(ip_ranges: dict) -> list[str]:
                 provider_deny_cidrs.add(entry.get("cidr", ""))
 
     for cidr in sorted(csp_cidrs - provider_deny_cidrs):
-        errors.append(f"csp_metadata CIDR '{cidr}' not found in any provider's deny_ranges")
+        errors.append(
+            f"csp_metadata CIDR '{cidr}' not found in any provider's deny_ranges"
+        )
 
     return errors
 
@@ -287,9 +310,19 @@ def write_json(path: Path, data: dict) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--iana-only", action="store_true", help="Only fetch IANA CSVs, skip cloud service ranges")
-    parser.add_argument("--validate-only", action="store_true", help="Validate existing JSON, no network")
-    parser.add_argument("--dry-run", action="store_true", help="Print changes without writing")
+    parser.add_argument(
+        "--iana-only",
+        action="store_true",
+        help="Only fetch IANA CSVs, skip cloud service ranges",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate existing JSON, no network",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print changes without writing"
+    )
     args = parser.parse_args()
 
     ip_ranges_path = CONFIG_DIR / "ip_ranges.json"
