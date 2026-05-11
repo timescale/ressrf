@@ -115,6 +115,50 @@ interface UrlRuleCase {
   expected: string;
 }
 
+interface SsrfTechniqueCase {
+  name: string;
+  category?: string;
+  url: string;
+  expected: string;
+  reason_type?: string;
+  denied_suffixes?: string[];
+  trusted_suffixes?: string[];
+  note?: string;
+}
+
+describe("Conformance: SSRF Technique Vectors", () => {
+  const { cases } = loadVectors("ssrf_techniques.json");
+
+  for (const raw of cases) {
+    const c = raw as SsrfTechniqueCase;
+
+    // Skip cases that need denied/trusted domain suffix configuration;
+    // those knobs are not exposed on the Node `PolicyBuilder` surface.
+    if (c.denied_suffixes || c.trusted_suffixes) continue;
+
+    it(`[${c.category ?? "uncategorized"}] ${c.name}`, async () => {
+      const policy = await Policy.externalOnly();
+
+      if (c.expected === "allowed") {
+        assert.doesNotThrow(
+          () => policy.isAllowed(c.url),
+          `expected allowed for ${c.name} (${c.url})`,
+        );
+      } else if (c.expected === "blocked") {
+        assert.throws(
+          () => policy.isAllowed(c.url),
+          (err: unknown) => err instanceof RessrfBlockedError || err instanceof Error,
+          `expected blocked for ${c.name} (${c.url})`,
+        );
+      } else {
+        assert.fail(`unknown expected value: ${c.expected}`);
+      }
+
+      policy.close();
+    });
+  }
+});
+
 describe("Conformance: URL Rules", () => {
   const { cases } = loadVectors("url_rules.json");
 
