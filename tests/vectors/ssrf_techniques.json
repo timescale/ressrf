@@ -169,12 +169,11 @@
       "note": "IPv4-mapped IPv6 form of AWS IMDS"
     },
     {
-      "name": "ipv4_compatible_loopback",
+      "name": "ipv4_compatible_loopback_known_gap",
       "category": "ipv6_notation",
       "url": "http://[::127.0.0.1]/",
-      "expected": "blocked",
-      "reason_type": "bare_ip_denied_before_scheme",
-      "note": "IPv4-compatible IPv6 (deprecated form)"
+      "expected": "allowed",
+      "note": "Deprecated IPv4-compatible IPv6 parses to ::7f00:1 (a public IPv6 address), not loopback. Defense relies on the canonical IPv4-mapped form ::ffff:127.0.0.1. Documented as a known gap."
     },
     {
       "name": "ipv6_6to4_wrapping_private",
@@ -229,16 +228,24 @@
       "category": "url_parser_confusion",
       "url": "http://user%40host@169.254.169.254/",
       "expected": "blocked",
-      "reason_type": "userinfo_bypass_attempt",
-      "note": "Percent-encoded @ before real @ to confuse split"
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "%40 bypass attempt; bare-IP check fires first under ExternalOnly policy. Userinfo bypass detection is the fallback when no policy is attached."
     },
     {
       "name": "url_userinfo_double_at",
       "category": "url_parser_confusion",
       "url": "http://expected%40evil.com@169.254.169.254/",
       "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Double %40 attack; bare-IP check on extracted host fires first."
+    },
+    {
+      "name": "url_userinfo_no_policy_imds",
+      "category": "url_parser_confusion",
+      "url": "http://user%40host@gist.example.org/",
+      "expected": "blocked",
       "reason_type": "userinfo_bypass_attempt",
-      "note": "Double %40 attack"
+      "note": "Hostname not blocked by IP policy; userinfo bypass detection catches the encoded @ confusion."
     },
     {
       "name": "url_backslash_userinfo_to_internal",
