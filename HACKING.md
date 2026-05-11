@@ -107,7 +107,7 @@ cd go/ressrf && go test -race ./...
 cd python && uv run pytest tests/ -v
 
 # Node.js
-cd node && npx tsx --test tests/*.test.ts
+cd node && node --import tsx --test tests/*.test.ts
 ```
 
 ### Shared test vectors

@@ -4,6 +4,11 @@
   "description": "SSRF prevention library powered by a WASM policy engine",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/timescale/ressrf",
+    "directory": "node"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
