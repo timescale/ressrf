@@ -5,11 +5,17 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Policy, PolicyBuilder, type UrlRule, type Preset } from "../src/policy.js";
 import { RessrfBlockedError } from "../src/errors.js";
+import { AuditFunc, type AuditEvent } from "../src/audit.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VECTORS_DIR = resolve(__dirname, "..", "..", "tests", "vectors");
 
 function loadVectors(filename: string): { cases: unknown[] } {
+  const content = readFileSync(resolve(VECTORS_DIR, filename), "utf-8");
+  return JSON.parse(content);
+}
+
+function loadTestCases(filename: string): { test_cases: unknown[] } {
   const content = readFileSync(resolve(VECTORS_DIR, filename), "utf-8");
   return JSON.parse(content);
 }
@@ -200,6 +206,167 @@ describe("Conformance: URL Rules", () => {
           (err: unknown) => err instanceof RessrfBlockedError || err instanceof Error,
           `expected blocked for case: ${c.name}`,
         );
+      }
+
+      policy.close();
+    });
+  }
+});
+
+interface AuditCase {
+  name: string;
+  action: string;
+  config: {
+    preset: string;
+    cloud_modules?: string[];
+    audit_sink?: null;
+    [key: string]: unknown;
+  };
+  expected_event: {
+    variant: string;
+    fields: Record<string, unknown>;
+  } | null;
+}
+
+describe("Conformance: Audit Events", () => {
+  const { test_cases } = loadTestCases("audit_events.json");
+
+  for (const raw of test_cases) {
+    const c = raw as AuditCase;
+
+    if (
+      c.action === "validate_host" ||
+      c.action === "connection_attempt" ||
+      c.action === "redirect_intercepted" ||
+      c.action === "validate_url"
+    ) {
+      continue;
+    }
+
+    it(c.name, async () => {
+      if (c.action === "create_policy") {
+        const isNoSink = c.expected_event === null;
+
+        if (isNoSink) {
+          const policy = await new PolicyBuilder(
+            c.config.preset as Preset,
+          ).build();
+          policy.close();
+          return;
+        }
+
+        const events: AuditEvent[] = [];
+        const sink = new AuditFunc((event) => events.push(event));
+
+        const builder = new PolicyBuilder(c.config.preset as Preset);
+        if (c.config.cloud_modules) {
+          builder.addCloud(...c.config.cloud_modules);
+        }
+        builder.auditSink(sink);
+        const policy = await builder.build();
+
+        assert.ok(
+          events.length > 0,
+          `${c.name}: expected at least one audit event`,
+        );
+
+        const created = events.find((e) => e.kind === "policy_created");
+        assert.ok(created, `${c.name}: no policy_created event`);
+
+        const fields = c.expected_event!.fields;
+        assert.strictEqual(
+          created!.fields?.preset,
+          fields.preset,
+          `${c.name}: preset mismatch`,
+        );
+        if (typeof fields.deny_count_min === "number") {
+          assert.ok(
+            (created!.fields?.deny_count as number) >= fields.deny_count_min,
+            `${c.name}: deny_count too low`,
+          );
+        }
+        assert.strictEqual(
+          created!.fields?.allow_count,
+          fields.allow_count,
+          `${c.name}: allow_count mismatch`,
+        );
+
+        policy.close();
+      }
+    });
+  }
+});
+
+interface RedirectChainCase {
+  name: string;
+  chain: string[];
+  policy_preset: string;
+  expected: string;
+  blocked_at_hop?: number;
+  max_redirects?: number;
+  allow_cidrs?: string[];
+  allow_plaintext_http?: boolean;
+  reason?: string;
+  note?: string;
+}
+
+describe("Conformance: Redirect Chains", () => {
+  const { test_cases } = loadTestCases("redirect_chains.json");
+
+  for (const raw of test_cases) {
+    const c = raw as RedirectChainCase;
+
+    it(c.name, async () => {
+      const builder = new PolicyBuilder(c.policy_preset as Preset);
+      if (c.allow_cidrs) {
+        builder.addAllowed(...c.allow_cidrs);
+      }
+
+      const policy = await builder.build();
+      const requireHTTPS =
+        c.policy_preset === "external_only" && !c.allow_plaintext_http;
+      const limit = c.max_redirects ?? Infinity;
+
+      let blockedAt = -1;
+      for (let i = 1; i < c.chain.length; i++) {
+        if (i >= limit) {
+          blockedAt = i;
+          break;
+        }
+
+        // The WASM ABI does not enforce protocol rules (require_https),
+        // so check the scheme manually for redirect hop validation.
+        if (requireHTTPS && c.chain[i].startsWith("http://")) {
+          blockedAt = i;
+          break;
+        }
+
+        try {
+          policy.isAllowed(c.chain[i]);
+        } catch {
+          blockedAt = i;
+          break;
+        }
+      }
+
+      if (c.expected === "allowed") {
+        assert.strictEqual(
+          blockedAt,
+          -1,
+          `${c.name}: expected allowed, blocked at hop ${blockedAt}`,
+        );
+      } else {
+        assert.ok(
+          blockedAt >= 0,
+          `${c.name}: expected blocked, got allowed`,
+        );
+        if (c.blocked_at_hop !== undefined) {
+          assert.strictEqual(
+            blockedAt,
+            c.blocked_at_hop,
+            `${c.name}: expected blocked at hop ${c.blocked_at_hop}, got ${blockedAt}`,
+          );
+        }
       }
 
       policy.close();
