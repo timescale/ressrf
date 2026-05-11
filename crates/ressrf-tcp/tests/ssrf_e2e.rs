@@ -14,10 +14,16 @@
 //! cargo test --features e2e -p ressrf-tcp
 //! ```
 //!
-//! Docker is required.
+//! Docker (with Linux container support) is required for every test that
+//! touches `coredns::start` or `wiremock::start`. Each such test invokes
+//! the [`skip_without_docker!`] macro at the top so that the suite passes
+//! (with a printed skip notice) on macOS / Windows workstations without a
+//! Docker daemon. The CI `e2e-tests` job runs on Ubuntu where Docker is
+//! installed.
 
 #![cfg(feature = "e2e")]
 
+#[macro_use]
 mod common;
 
 use std::net::SocketAddr;
@@ -36,6 +42,7 @@ fn external_only() -> Policy {
 
 #[tokio::test]
 async fn dns_wildcard_resolving_to_loopback_is_blocked() {
+    skip_without_docker!();
     let (_dns_container, dns_addr) = coredns::start().await;
 
     let policy = external_only();
@@ -51,6 +58,7 @@ async fn dns_wildcard_resolving_to_loopback_is_blocked() {
 
 #[tokio::test]
 async fn dns_metadata_alias_to_imds_is_blocked() {
+    skip_without_docker!();
     let (_dns_container, dns_addr) = coredns::start().await;
 
     let policy = external_only();
@@ -66,6 +74,7 @@ async fn dns_metadata_alias_to_imds_is_blocked() {
 
 #[tokio::test]
 async fn dns_multi_answer_with_one_private_ip_blocks_all() {
+    skip_without_docker!();
     // `multi-answer.ssrf.test` resolves to [8.8.8.8, 10.0.0.1]. Policy
     // must reject the entire set because at least one IP is denied.
     let (_dns_container, dns_addr) = coredns::start().await;
@@ -140,6 +149,7 @@ async fn safe_resolver_pins_resolved_ips_no_toctou() {
 async fn wiremock_redirect_to_private_ip_is_blocked_by_redirect_validator() {
     use ressrf_http::{RedirectPolicy, RedirectValidator};
 
+    skip_without_docker!();
     let (_wm_container, wm_addr) = wiremock::start().await;
     let policy = Arc::new(external_only());
     let validator = RedirectValidator::new(Arc::clone(&policy), RedirectPolicy::follow(10));
@@ -161,6 +171,7 @@ async fn wiremock_redirect_to_private_ip_is_blocked_by_redirect_validator() {
 async fn wiremock_redirect_to_imds_is_blocked() {
     use ressrf_http::{RedirectPolicy, RedirectValidator};
 
+    skip_without_docker!();
     let (_wm_container, _wm_addr) = wiremock::start().await;
     let policy = Arc::new(external_only());
     let validator = RedirectValidator::new(Arc::clone(&policy), RedirectPolicy::follow(10));
@@ -173,6 +184,7 @@ async fn wiremock_redirect_to_imds_is_blocked() {
 async fn wiremock_redirect_to_decimal_imds_is_blocked() {
     use ressrf_http::{RedirectPolicy, RedirectValidator};
 
+    skip_without_docker!();
     let (_wm_container, _wm_addr) = wiremock::start().await;
     let policy = Arc::new(external_only());
     let validator = RedirectValidator::new(Arc::clone(&policy), RedirectPolicy::follow(10));
@@ -189,6 +201,7 @@ async fn wiremock_redirect_to_decimal_imds_is_blocked() {
 async fn wiremock_redirect_to_mapped_ipv6_imds_is_blocked() {
     use ressrf_http::{RedirectPolicy, RedirectValidator};
 
+    skip_without_docker!();
     let (_wm_container, _wm_addr) = wiremock::start().await;
     let policy = Arc::new(external_only());
     let validator = RedirectValidator::new(Arc::clone(&policy), RedirectPolicy::follow(10));
@@ -201,6 +214,7 @@ async fn wiremock_redirect_to_mapped_ipv6_imds_is_blocked() {
 async fn wiremock_redirect_to_gopher_is_blocked() {
     use ressrf_http::{RedirectPolicy, RedirectValidator};
 
+    skip_without_docker!();
     let (_wm_container, _wm_addr) = wiremock::start().await;
     let policy = Arc::new(external_only());
     let validator = RedirectValidator::new(Arc::clone(&policy), RedirectPolicy::follow(10));
@@ -213,6 +227,7 @@ async fn wiremock_redirect_to_gopher_is_blocked() {
 async fn wiremock_redirect_to_file_is_blocked() {
     use ressrf_http::{RedirectPolicy, RedirectValidator};
 
+    skip_without_docker!();
     let (_wm_container, _wm_addr) = wiremock::start().await;
     let policy = Arc::new(external_only());
     let validator = RedirectValidator::new(Arc::clone(&policy), RedirectPolicy::follow(10));
@@ -225,6 +240,7 @@ async fn wiremock_redirect_to_file_is_blocked() {
 
 #[tokio::test]
 async fn redirect_to_dns_alias_resolves_to_internal_and_is_blocked() {
+    skip_without_docker!();
     let (_dns_container, dns_addr) = coredns::start().await;
     let (_wm_container, _wm_addr) = wiremock::start().await;
 

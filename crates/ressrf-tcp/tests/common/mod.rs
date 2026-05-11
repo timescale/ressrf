@@ -3,6 +3,11 @@
 //! Spins up `CoreDNS` and `WireMock` containers via `testcontainers-rs` and
 //! exposes a `ContainerDns` `DnsBackend` adapter that points hickory
 //! at a custom `CoreDNS` instance.
+//!
+//! Tests that require Docker are guarded with the [`skip_without_docker!`]
+//! macro so they pass (with a printed skip notice) on macOS / Windows
+//! workstations without a Docker daemon. The CI `e2e-tests` job runs on
+//! Linux with Docker installed and exercises every case.
 
 #![allow(dead_code)]
 
@@ -22,6 +27,36 @@ fn workspace_root() -> PathBuf {
         .parent()
         .unwrap()
         .to_path_buf()
+}
+
+/// Detect whether a Docker daemon serving Linux containers is reachable.
+///
+/// Used by [`skip_without_docker!`] to avoid panicking on dev machines and
+/// CI runners where Docker is unavailable (macOS / Windows). Returns `true`
+/// only when `docker info` succeeds and reports `linux` as its OS type;
+/// Windows-container daemons cannot run our Linux-based images.
+#[must_use]
+pub fn can_run_linux_containers() -> bool {
+    let output = std::process::Command::new("docker")
+        .args(["info", "--format", "{{.OSType}}"])
+        .output();
+    match output {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim() == "linux",
+        _ => false,
+    }
+}
+
+/// Early-return the current test with a "skipped" notice if a Linux-capable
+/// Docker daemon is not reachable. Use at the top of every test that calls
+/// [`coredns::start`] or [`wiremock::start`].
+#[macro_export]
+macro_rules! skip_without_docker {
+    () => {
+        if !$crate::common::can_run_linux_containers() {
+            eprintln!("Skipping: Docker with Linux container support is not available");
+            return;
+        }
+    };
 }
 
 /// `DnsBackend` adapter that resolves through a hickory resolver pointed
