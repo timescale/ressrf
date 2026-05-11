@@ -10,8 +10,8 @@ npm install ressrf
 
 Requires Node.js 20+. Optional peer dependencies for protocol adapters:
 
-- `undici` (>=6.0.0) for `undiciConnect`
-- `ssh2` (>=1.15.0) for `safeSshConnect`
+- `undici` (>=8.2.0) for `undiciConnect`
+- `ssh2` (>=1.17.0) for `safeSshConnect`
 
 ## Public API
 
