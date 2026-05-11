@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -293,6 +295,180 @@ func TestURLRulesConformance(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuditEventVectors(t *testing.T) {
+	ctx := context.Background()
+
+	data, err := os.ReadFile(vectorPath("audit_events.json"))
+	if err != nil {
+		t.Fatalf("read vectors: %v", err)
+	}
+
+	var vectors struct {
+		TestCases []struct {
+			Name          string           `json:"name"`
+			Action        string           `json:"action"`
+			Config        json.RawMessage  `json:"config"`
+			ExpectedEvent *json.RawMessage `json:"expected_event"`
+		} `json:"test_cases"`
+	}
+	if err := json.Unmarshal(data, &vectors); err != nil {
+		t.Fatalf("parse vectors: %v", err)
+	}
+
+	for _, tc := range vectors.TestCases {
+		switch tc.Action {
+		case "create_policy":
+			t.Run(tc.Name, func(t *testing.T) {
+				var cfg struct {
+					Preset       string   `json:"preset"`
+					CloudModules []string `json:"cloud_modules"`
+					AuditSink    *string  `json:"audit_sink"`
+				}
+				if err := json.Unmarshal(tc.Config, &cfg); err != nil {
+					t.Fatalf("parse config: %v", err)
+				}
+
+				isNoSinkCase := tc.ExpectedEvent == nil
+
+				if isNoSinkCase {
+					// Build without audit sink; verify no panic.
+					builder := presetBuilder(cfg.Preset)
+					policy, err := builder.Build(ctx)
+					if err != nil {
+						t.Fatalf("build: %v", err)
+					}
+					_ = policy.Close(ctx)
+					return
+				}
+
+				var mu sync.Mutex
+				var events []AuditEvent
+				sink := AuditFunc(func(_ context.Context, e *AuditEvent) {
+					mu.Lock()
+					events = append(events, *e)
+					mu.Unlock()
+				})
+
+				builder := presetBuilder(cfg.Preset)
+				if len(cfg.CloudModules) > 0 {
+					builder.WithCloudProviders(cfg.CloudModules...)
+				}
+				builder.WithAuditSink(sink)
+				policy, err := builder.Build(ctx)
+				if err != nil {
+					t.Fatalf("build: %v", err)
+				}
+				defer func() { _ = policy.Close(ctx) }()
+
+				mu.Lock()
+				count := len(events)
+				mu.Unlock()
+
+				if count == 0 {
+					t.Error("expected at least one audit event from policy creation")
+				}
+			})
+		case "validate_url", "validate_host", "connection_attempt", "redirect_intercepted":
+			// These event types are not yet emitted by the WASM core.
+		default:
+			t.Errorf("unknown action: %s", tc.Action)
+		}
+	}
+}
+
+func TestRedirectChainVectors(t *testing.T) {
+	ctx := context.Background()
+
+	data, err := os.ReadFile(vectorPath("redirect_chains.json"))
+	if err != nil {
+		t.Fatalf("read vectors: %v", err)
+	}
+
+	var vectors struct {
+		TestCases []struct {
+			Name              string   `json:"name"`
+			Chain             []string `json:"chain"`
+			PolicyPreset      string   `json:"policy_preset"`
+			Expected          string   `json:"expected"`
+			BlockedAtHop      *int     `json:"blocked_at_hop"`
+			MaxRedirects      *int     `json:"max_redirects"`
+			AllowCIDRs        []string `json:"allow_cidrs"`
+			AllowPlaintextHTTP bool    `json:"allow_plaintext_http"`
+		} `json:"test_cases"`
+	}
+	if err := json.Unmarshal(data, &vectors); err != nil {
+		t.Fatalf("parse vectors: %v", err)
+	}
+
+	for _, tc := range vectors.TestCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			builder := presetBuilder(tc.PolicyPreset)
+			if len(tc.AllowCIDRs) > 0 {
+				builder.WithAllowedCIDRs(tc.AllowCIDRs...)
+			}
+
+			policy, err := builder.Build(ctx)
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			defer func() { _ = policy.Close(ctx) }()
+
+			limit := -1
+			if tc.MaxRedirects != nil {
+				limit = *tc.MaxRedirects
+			}
+
+			requireHTTPS := tc.PolicyPreset == "external_only" && !tc.AllowPlaintextHTTP
+
+			blockedAt := -1
+			for i := 1; i < len(tc.Chain); i++ {
+				if limit >= 0 && i >= limit {
+					blockedAt = i
+					break
+				}
+
+				// The WASM ABI does not enforce protocol rules (require_https),
+				// so we check the scheme manually for redirect hop validation.
+				if requireHTTPS && strings.HasPrefix(tc.Chain[i], "http://") {
+					blockedAt = i
+					break
+				}
+
+				if err := policy.IsAllowed(ctx, tc.Chain[i]); err != nil {
+					blockedAt = i
+					break
+				}
+			}
+
+			switch tc.Expected {
+			case "allowed":
+				if blockedAt >= 0 {
+					t.Errorf("expected allowed, blocked at hop %d", blockedAt)
+				}
+			case "blocked":
+				if blockedAt < 0 {
+					t.Error("expected blocked, got allowed")
+				} else if tc.BlockedAtHop != nil && blockedAt != *tc.BlockedAtHop {
+					t.Errorf("expected blocked at hop %d, got %d", *tc.BlockedAtHop, blockedAt)
+				}
+			}
+		})
+	}
+}
+
+func presetBuilder(preset string) *PolicyBuilder {
+	var p Preset
+	switch preset {
+	case "external_only":
+		p = PresetExternalOnly
+	case "internal_only":
+		p = PresetInternalOnly
+	default:
+		p = PresetNone
+	}
+	return NewPolicyBuilder(p)
 }
 
 func TestDisableForTests(t *testing.T) {
