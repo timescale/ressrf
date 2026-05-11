@@ -8,7 +8,7 @@ Go package for SSRF prevention, powered by the `ressrf-core` engine running in a
 go get github.com/mostafa/ressrf/go/ressrf
 ```
 
-Requires Go 1.22+.
+Requires Go 1.26+.
 
 ## Public API
 

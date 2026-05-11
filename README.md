@@ -113,7 +113,7 @@ try {
 | Language | Command | Requirements |
 |----------|---------|--------------|
 | Rust | `cargo add ressrf-core` | Rust 1.75+ |
-| Go | `go get github.com/mostafa/ressrf/go/ressrf` | Go 1.22+ |
+| Go | `go get github.com/mostafa/ressrf/go/ressrf` | Go 1.26+ |
 | Python | `pip install ressrf` | Python 3.10+ |
 | Node.js | `npm install ressrf` | Node.js 20+ |
 
@@ -242,6 +242,8 @@ cd node && npx tsx --test tests/*.test.ts # Node.js
 ## Contributing
 
 If you would like to see integration with your favorite programming language, cloud provider, protocol, or library, feel free to open an issue or submit a pull request. Contributions of all kinds are welcome.
+
+See [HACKING.md](HACKING.md) for development setup, testing, and step-by-step guides for adding new cloud providers, language bindings, protocol adapters, and client library integrations.
 
 ## License
 
