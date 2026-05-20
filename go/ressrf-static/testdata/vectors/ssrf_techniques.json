@@ -1,0 +1,729 @@
+{
+  "description": "End-to-end SSRF bypass technique test vectors. Each case feeds a crafted URL through UriValidator + Policy and asserts blocked/allowed. Categories follow the SSRF technique taxonomy in the SSRF Blind Spot Analysis plan.",
+  "cases": [
+    {
+      "name": "ip_repr_decimal_loopback",
+      "category": "ip_representation",
+      "url": "http://2130706433/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.0.1 as 32-bit decimal integer"
+    },
+    {
+      "name": "ip_repr_decimal_imds",
+      "category": "ip_representation",
+      "url": "http://2852039166/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "169.254.169.254 as 32-bit decimal integer"
+    },
+    {
+      "name": "ip_repr_decimal_zero",
+      "category": "ip_representation",
+      "url": "http://0/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "0 expands to 0.0.0.0"
+    },
+    {
+      "name": "ip_repr_octal_loopback",
+      "category": "ip_representation",
+      "url": "http://0177.0.0.1/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.0.1 with octal first octet"
+    },
+    {
+      "name": "ip_repr_octal_padded",
+      "category": "ip_representation",
+      "url": "http://0177.0000.0000.0001/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.0.1 with all-octal padded octets"
+    },
+    {
+      "name": "ip_repr_octal_compact",
+      "category": "ip_representation",
+      "url": "http://017700000001/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.0.1 as single octal integer"
+    },
+    {
+      "name": "ip_repr_hex_loopback",
+      "category": "ip_representation",
+      "url": "http://0x7f000001/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.0.1 as hex integer"
+    },
+    {
+      "name": "ip_repr_hex_dotted",
+      "category": "ip_representation",
+      "url": "http://0x7f.0x0.0x0.0x1/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.0.1 with hex octets"
+    },
+    {
+      "name": "ip_repr_hex_imds",
+      "category": "ip_representation",
+      "url": "http://0xa9fea9fe/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "169.254.169.254 as hex integer"
+    },
+    {
+      "name": "ip_repr_mixed_hex_decimal",
+      "category": "ip_representation",
+      "url": "http://0x7f.0.0.1/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "Mixed hex first octet"
+    },
+    {
+      "name": "ip_repr_shorthand_two",
+      "category": "ip_representation",
+      "url": "http://127.1/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.1 expands to 127.0.0.1"
+    },
+    {
+      "name": "ip_repr_shorthand_three",
+      "category": "ip_representation",
+      "url": "http://127.0.1/",
+      "expected": "blocked",
+      "reason_type": "ambiguous_ip_encoding",
+      "note": "127.0.1 expands to 127.0.0.1"
+    },
+    {
+      "name": "ip_repr_canonical_loopback_blocked",
+      "category": "ip_representation",
+      "url": "http://127.0.0.1/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Canonical loopback still blocked (control case)"
+    },
+    {
+      "name": "ip_repr_public_ipv4_allowed",
+      "category": "ip_representation",
+      "url": "http://8.8.8.8/",
+      "expected": "allowed",
+      "note": "Canonical public IPv4 (control case)"
+    },
+    {
+      "name": "ipv6_loopback_brackets",
+      "category": "ipv6_notation",
+      "url": "http://[::1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv6 loopback canonical bracketed form"
+    },
+    {
+      "name": "ipv6_loopback_padded",
+      "category": "ipv6_notation",
+      "url": "http://[0000:0000:0000:0000:0000:0000:0000:0001]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv6 loopback fully padded"
+    },
+    {
+      "name": "ipv6_loopback_partial",
+      "category": "ipv6_notation",
+      "url": "http://[0:0:0:0:0:0:0:1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv6 loopback un-compressed"
+    },
+    {
+      "name": "ipv6_unspecified",
+      "category": "ipv6_notation",
+      "url": "http://[::]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv6 unspecified address"
+    },
+    {
+      "name": "ipv4_unspecified",
+      "category": "ipv6_notation",
+      "url": "http://0.0.0.0/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4 unspecified"
+    },
+    {
+      "name": "ipv4_mapped_ipv6_loopback",
+      "category": "ipv6_notation",
+      "url": "http://[::ffff:127.0.0.1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-mapped IPv6 loopback"
+    },
+    {
+      "name": "ipv4_mapped_ipv6_imds",
+      "category": "ipv6_notation",
+      "url": "http://[::ffff:169.254.169.254]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-mapped IPv6 form of AWS IMDS"
+    },
+    {
+      "name": "ipv4_compatible_loopback_known_gap",
+      "category": "ipv6_notation",
+      "url": "http://[::127.0.0.1]/",
+      "expected": "allowed",
+      "note": "Deprecated IPv4-compatible IPv6 parses to ::7f00:1 (a public IPv6 address), not loopback. Defense relies on the canonical IPv4-mapped form ::ffff:127.0.0.1. Documented as a known gap."
+    },
+    {
+      "name": "ipv6_6to4_wrapping_private",
+      "category": "ipv6_notation",
+      "url": "http://[2002:c0a8:0101::1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "6to4 (2002::/16) wrapping 192.168.1.1"
+    },
+    {
+      "name": "ipv6_teredo",
+      "category": "ipv6_notation",
+      "url": "http://[2001:0000:1234::1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Teredo prefix 2001::/32"
+    },
+    {
+      "name": "ipv6_nat64_wrapping_private",
+      "category": "ipv6_notation",
+      "url": "http://[64:ff9b::10.0.0.1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "NAT64 well-known wrapping RFC1918"
+    },
+    {
+      "name": "ipv6_aws_imds_v6",
+      "category": "ipv6_notation",
+      "url": "http://[fd00:ec2::254]/latest/meta-data/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "AWS IPv6 IMDS endpoint"
+    },
+    {
+      "name": "ipv6_link_local",
+      "category": "ipv6_notation",
+      "url": "http://[fe80::1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv6 link-local"
+    },
+    {
+      "name": "ipv6_ula",
+      "category": "ipv6_notation",
+      "url": "http://[fc00::1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv6 unique local address"
+    },
+    {
+      "name": "url_userinfo_percent_at_imds",
+      "category": "url_parser_confusion",
+      "url": "http://user%40host@169.254.169.254/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "%40 bypass attempt; bare-IP check fires first under ExternalOnly policy. Userinfo bypass detection is the fallback when no policy is attached."
+    },
+    {
+      "name": "url_userinfo_double_at",
+      "category": "url_parser_confusion",
+      "url": "http://expected%40evil.com@169.254.169.254/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Double %40 attack; bare-IP check on extracted host fires first."
+    },
+    {
+      "name": "url_userinfo_no_policy_imds",
+      "category": "url_parser_confusion",
+      "url": "http://user%40host@gist.example.org/",
+      "expected": "blocked",
+      "reason_type": "userinfo_bypass_attempt",
+      "note": "Hostname not blocked by IP policy; userinfo bypass detection catches the encoded @ confusion."
+    },
+    {
+      "name": "url_backslash_userinfo_to_internal",
+      "category": "url_parser_confusion",
+      "url": "http://127.0.0.1\\@trusted.com/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Backslash normalized to /; host becomes 127.0.0.1"
+    },
+    {
+      "name": "url_no_double_slash_after_scheme",
+      "category": "url_parser_confusion",
+      "url": "http:host/path",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "BS-2: http:host parsed as pseudo-scheme since no //"
+    },
+    {
+      "name": "url_null_byte_in_host",
+      "category": "url_parser_confusion",
+      "url": "http://expected-host%00.evil.com/",
+      "expected": "blocked",
+      "reason_type": "hostname_invalid",
+      "note": "%00 in host should be rejected"
+    },
+    {
+      "name": "url_null_byte_after_imds",
+      "category": "url_parser_confusion",
+      "url": "http://169.254.169.254%00.example.com/",
+      "expected": "blocked",
+      "reason_type": "hostname_invalid",
+      "note": "%00 after IMDS to confuse parsers"
+    },
+    {
+      "name": "url_crlf_injection",
+      "category": "url_parser_confusion",
+      "url": "http://example.com%0d%0aHost:%20169.254.169.254",
+      "expected": "blocked",
+      "reason_type": "hostname_invalid",
+      "note": "CRLF in URL for header injection"
+    },
+    {
+      "name": "url_lf_injection",
+      "category": "url_parser_confusion",
+      "url": "http://example.com%0aHost:%20169.254.169.254",
+      "expected": "blocked",
+      "reason_type": "hostname_invalid",
+      "note": "Lone LF in URL"
+    },
+    {
+      "name": "url_protocol_relative_double_slash",
+      "category": "url_parser_confusion",
+      "url": "//127.0.0.1/",
+      "expected": "blocked",
+      "note": "Protocol-relative URL has no scheme"
+    },
+    {
+      "name": "url_protocol_relative_quad_slash",
+      "category": "url_parser_confusion",
+      "url": "////127.0.0.1/",
+      "expected": "blocked",
+      "note": "Quadruple slash protocol-relative"
+    },
+    {
+      "name": "url_unc_double_backslash",
+      "category": "url_parser_confusion",
+      "url": "\\\\evil.com\\share",
+      "expected": "blocked",
+      "reason_type": "url_parse_error",
+      "note": "BS-6: UNC path rejected"
+    },
+    {
+      "name": "url_case_varied_scheme_imds",
+      "category": "url_parser_confusion",
+      "url": "HTTP://169.254.169.254/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Uppercase scheme should still apply IP policy"
+    },
+    {
+      "name": "url_case_varied_scheme_mixed",
+      "category": "url_parser_confusion",
+      "url": "hTTp://127.0.0.1/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Mixed-case scheme normalized"
+    },
+    {
+      "name": "url_bare_hostname_no_scheme",
+      "category": "url_parser_confusion",
+      "url": "example.com",
+      "expected": "blocked",
+      "reason_type": "scheme_required",
+      "note": "BS-2: bare hostname with no scheme"
+    },
+    {
+      "name": "scheme_file_etc_passwd",
+      "category": "protocol_smuggling",
+      "url": "file:///etc/passwd",
+      "expected": "blocked",
+      "note": "file:// scheme not in allowlist"
+    },
+    {
+      "name": "scheme_gopher_redis",
+      "category": "protocol_smuggling",
+      "url": "gopher://127.0.0.1:6379/_INFO",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "gopher:// for Redis exploitation"
+    },
+    {
+      "name": "scheme_dict_memcached",
+      "category": "protocol_smuggling",
+      "url": "dict://127.0.0.1:11211/stat",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "dict:// for Memcached exploitation"
+    },
+    {
+      "name": "scheme_sftp",
+      "category": "protocol_smuggling",
+      "url": "sftp://evil.com:11111/",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "sftp:// not in allowlist"
+    },
+    {
+      "name": "scheme_tftp",
+      "category": "protocol_smuggling",
+      "url": "tftp://evil.com:12346/TESTUDPPACKET",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "tftp:// not in allowlist"
+    },
+    {
+      "name": "scheme_ldap",
+      "category": "protocol_smuggling",
+      "url": "ldap://localhost:389/%0astats%0aquit",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "ldap:// for directory injection"
+    },
+    {
+      "name": "scheme_jar",
+      "category": "protocol_smuggling",
+      "url": "jar:http://127.0.0.1!/",
+      "expected": "blocked",
+      "note": "jar:// (Java archive) wrapping HTTP"
+    },
+    {
+      "name": "scheme_data_html",
+      "category": "protocol_smuggling",
+      "url": "data:text/html,<script>alert(1)</script>",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "BS-2: data:// scheme rejected"
+    },
+    {
+      "name": "scheme_javascript",
+      "category": "protocol_smuggling",
+      "url": "javascript:alert(1)",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "BS-2: javascript: scheme rejected"
+    },
+    {
+      "name": "scheme_phar",
+      "category": "protocol_smuggling",
+      "url": "phar:///path/to/file.phar",
+      "expected": "blocked",
+      "note": "phar:// (PHP archive) deserialization"
+    },
+    {
+      "name": "scheme_smb",
+      "category": "protocol_smuggling",
+      "url": "smb://127.0.0.1/share",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "smb:// for CIFS/SMB share access"
+    },
+    {
+      "name": "scheme_ftp_anonymous",
+      "category": "protocol_smuggling",
+      "url": "ftp://127.0.0.1/",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "ftp:// to loopback"
+    },
+    {
+      "name": "scheme_ftp_with_credentials",
+      "category": "protocol_smuggling",
+      "url": "ftp://user:pass@internal-ftp/file.txt",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "ftp:// with credentials in URL"
+    },
+    {
+      "name": "scheme_netdoc",
+      "category": "protocol_smuggling",
+      "url": "netdoc:///etc/passwd",
+      "expected": "blocked",
+      "note": "Java netdoc:// scheme"
+    },
+    {
+      "name": "metadata_aws_imds_v1",
+      "category": "cloud_metadata",
+      "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "AWS IMDSv1 credential endpoint"
+    },
+    {
+      "name": "metadata_aws_imds_v6",
+      "category": "cloud_metadata",
+      "url": "http://[fd00:ec2::254]/latest/meta-data/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "AWS IPv6 IMDS"
+    },
+    {
+      "name": "metadata_gcp_full_domain",
+      "category": "cloud_metadata",
+      "url": "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+      "denied_suffixes": ["metadata.google.internal"],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied",
+      "note": "GCP metadata service hostname"
+    },
+    {
+      "name": "metadata_gcp_short",
+      "category": "cloud_metadata",
+      "url": "http://metadata/computeMetadata/v1/",
+      "denied_suffixes": ["metadata"],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied",
+      "note": "GCP short metadata hostname"
+    },
+    {
+      "name": "metadata_k8s_apiserver",
+      "category": "cloud_metadata",
+      "url": "http://kubernetes.default.svc.cluster.local/api/v1/",
+      "denied_suffixes": [".svc.cluster.local"],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied",
+      "note": "Kubernetes internal API server"
+    },
+    {
+      "name": "metadata_azure_imds",
+      "category": "cloud_metadata",
+      "url": "http://169.254.169.254/metadata/instance?api-version=2021-02-01",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Azure IMDS uses same IP as AWS"
+    },
+    {
+      "name": "metadata_azure_wireserver",
+      "category": "cloud_metadata",
+      "url": "http://168.63.129.16/machine?comp=goalstate",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Azure Wireserver"
+    },
+    {
+      "name": "metadata_aws_ecs",
+      "category": "cloud_metadata",
+      "url": "http://169.254.170.2/v2/credentials/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "AWS ECS task metadata"
+    },
+    {
+      "name": "metadata_digitalocean",
+      "category": "cloud_metadata",
+      "url": "http://169.254.169.254/metadata/v1/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "DigitalOcean metadata"
+    },
+    {
+      "name": "metadata_oracle_cloud",
+      "category": "cloud_metadata",
+      "url": "http://169.254.169.254/opc/v1/instance/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Oracle Cloud metadata"
+    },
+    {
+      "name": "metadata_docker_daemon_loopback",
+      "category": "cloud_metadata",
+      "url": "http://127.0.0.1:2375/containers/json",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Docker daemon TCP socket"
+    },
+    {
+      "name": "metadata_imds_via_mapped_ipv6",
+      "category": "cloud_metadata",
+      "url": "http://[::ffff:169.254.169.254]/latest/meta-data/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IMDS via IPv4-mapped IPv6"
+    },
+    {
+      "name": "private_ip_rfc1918_class_a",
+      "category": "cloud_metadata",
+      "url": "http://10.0.0.1/admin",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "RFC1918 10.0.0.0/8"
+    },
+    {
+      "name": "private_ip_rfc1918_class_b",
+      "category": "cloud_metadata",
+      "url": "http://172.16.0.1/admin",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "RFC1918 172.16.0.0/12"
+    },
+    {
+      "name": "private_ip_rfc1918_class_c",
+      "category": "cloud_metadata",
+      "url": "http://192.168.1.1/admin",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "RFC1918 192.168.0.0/16"
+    },
+    {
+      "name": "private_ip_cgnat",
+      "category": "cloud_metadata",
+      "url": "http://100.64.0.1/internal",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "CGNAT 100.64.0.0/10"
+    },
+    {
+      "name": "redirect_chain_simple",
+      "category": "redirect_chains",
+      "url": "https://example.com/redirect?url=http://10.0.0.1/",
+      "expected": "allowed",
+      "note": "Initial URL is fine; redirect-time URL is what matters (covered by tier 2 e2e)"
+    },
+    {
+      "name": "unicode_fullwidth_localhost",
+      "category": "unicode_idn",
+      "url": "http://\uff4c\uff4f\uff43\uff41\uff4c\uff48\uff4f\uff53\uff54/",
+      "denied_suffixes": ["localhost"],
+      "expected": "allowed",
+      "note": "Fullwidth Latin not normalized; passes since it doesn't match canonical localhost (defense-in-depth gap to address)"
+    },
+    {
+      "name": "unicode_double_dash_punycode_allowed",
+      "category": "unicode_idn",
+      "url": "https://xn--nxasmq6b.example.com/",
+      "expected": "allowed",
+      "note": "Punycode (xn--) double-dash explicitly allowed"
+    },
+    {
+      "name": "unicode_double_dash_non_punycode_blocked",
+      "category": "unicode_idn",
+      "url": "https://foo--bar.example.com/",
+      "expected": "blocked",
+      "reason_type": "hostname_invalid",
+      "note": "Non-punycode double-dash rejected for cloud hardening"
+    },
+    {
+      "name": "trailing_dot_imds_domain",
+      "category": "url_parser_confusion",
+      "url": "http://metadata.google.internal./",
+      "denied_suffixes": ["google.internal"],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied",
+      "note": "BS-4: trailing dot must not bypass suffix deny"
+    },
+    {
+      "name": "trailing_dot_in_suffix_normalized",
+      "category": "url_parser_confusion",
+      "url": "http://metadata.google.internal/",
+      "denied_suffixes": ["google.internal."],
+      "expected": "blocked",
+      "reason_type": "domain_suffix_denied",
+      "note": "BS-4: suffix with trailing dot still matches canonical host"
+    },
+    {
+      "name": "control_canonical_public_https",
+      "category": "control",
+      "url": "https://example.com/api",
+      "expected": "allowed",
+      "note": "Canonical public HTTPS URL (control case)"
+    },
+    {
+      "name": "control_canonical_public_http",
+      "category": "control",
+      "url": "http://example.com/path",
+      "expected": "allowed",
+      "note": "Canonical public HTTP URL (control case)"
+    },
+    {
+      "name": "control_canonical_public_ws",
+      "category": "control",
+      "url": "ws://example.com/socket",
+      "expected": "allowed",
+      "note": "WebSocket scheme allowed (control case)"
+    },
+    {
+      "name": "control_canonical_public_wss",
+      "category": "control",
+      "url": "wss://example.com/socket",
+      "expected": "allowed",
+      "note": "Secure WebSocket scheme allowed (control case)"
+    },
+    {
+      "name": "control_public_with_port",
+      "category": "control",
+      "url": "https://example.com:8443/path",
+      "expected": "allowed",
+      "note": "Public URL with explicit port"
+    },
+    {
+      "name": "control_public_with_userinfo_no_bypass",
+      "category": "control",
+      "url": "https://user:pass@example.com/",
+      "expected": "allowed",
+      "note": "Legitimate userinfo (no %40 bypass)"
+    },
+    {
+      "name": "control_trusted_suffix_match",
+      "category": "control",
+      "url": "https://api.example.com/v1/data",
+      "trusted_suffixes": ["example.com"],
+      "expected": "allowed",
+      "note": "Allowlisted domain"
+    },
+    {
+      "name": "control_trusted_suffix_boundary_no_match",
+      "category": "control",
+      "url": "https://notexample.com/",
+      "trusted_suffixes": ["example.com"],
+      "expected": "blocked",
+      "reason_type": "domain_not_in_allow_list",
+      "note": "Boundary-aware match: notexample.com != suffix example.com"
+    },
+    {
+      "name": "fragment_after_imds_does_not_save",
+      "category": "url_parser_confusion",
+      "url": "http://169.254.169.254#expected.example.com",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Fragment after host does not change the host"
+    },
+    {
+      "name": "fragment_after_userinfo_imds",
+      "category": "url_parser_confusion",
+      "url": "http://expected.example.com#@169.254.169.254/",
+      "expected": "allowed",
+      "note": "# starts a fragment; host stays expected.example.com (no userinfo before #)"
+    },
+    {
+      "name": "scheme_only_with_garbage",
+      "category": "url_parser_confusion",
+      "url": "evil:something",
+      "expected": "blocked",
+      "reason_type": "scheme_not_allowed",
+      "note": "Anything with a leading scheme: prefix rejected"
+    },
+    {
+      "name": "empty_host_after_scheme",
+      "category": "url_parser_confusion",
+      "url": "http:///path",
+      "expected": "blocked",
+      "reason_type": "url_parse_error",
+      "note": "Empty host between // and / produces UrlParseError"
+    },
+    {
+      "name": "control_public_ipv6_allowed",
+      "category": "ipv6_notation",
+      "url": "http://[2606:4700:4700::1111]/",
+      "expected": "allowed",
+      "note": "Cloudflare DNS IPv6 (control case)"
+    }
+  ]
+}

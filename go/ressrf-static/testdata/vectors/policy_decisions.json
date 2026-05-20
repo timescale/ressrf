@@ -1,0 +1,280 @@
+{
+  "description": "Policy decision test vectors. Tests the full policy engine with different presets and configurations.",
+  "cases": [
+    {
+      "name": "external_only_blocks_private_ipv4",
+      "preset": "external_only",
+      "ips": ["10.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_loopback",
+      "preset": "external_only",
+      "ips": ["127.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_link_local",
+      "preset": "external_only",
+      "ips": ["169.254.1.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_imds",
+      "preset": "external_only",
+      "ips": ["169.254.169.254"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_ecs_metadata",
+      "preset": "external_only",
+      "ips": ["169.254.170.2"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_azure_wireserver",
+      "preset": "external_only",
+      "ips": ["168.63.129.16"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_cgnat",
+      "preset": "external_only",
+      "ips": ["100.64.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_allows_public",
+      "preset": "external_only",
+      "ips": ["8.8.8.8"],
+      "expected": "allowed"
+    },
+    {
+      "name": "external_only_allows_public_2",
+      "preset": "external_only",
+      "ips": ["1.1.1.1"],
+      "expected": "allowed"
+    },
+    {
+      "name": "external_only_blocks_ipv6_loopback",
+      "preset": "external_only",
+      "ips": ["::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_ipv6_link_local",
+      "preset": "external_only",
+      "ips": ["fe80::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_ipv6_ula",
+      "preset": "external_only",
+      "ips": ["fd00::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_6to4",
+      "preset": "external_only",
+      "ips": ["2002:c0a8:1::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_teredo",
+      "preset": "external_only",
+      "ips": ["2001:0000:1234::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_blocks_nat64",
+      "preset": "external_only",
+      "ips": ["64:ff9b::192.168.1.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "external_only_allows_public_ipv6",
+      "preset": "external_only",
+      "ips": ["2607:f8b0:4004:800::200e"],
+      "expected": "allowed"
+    },
+    {
+      "name": "allow_overrides_deny",
+      "preset": "external_only",
+      "allow": ["10.42.0.0/16"],
+      "ips": ["10.42.1.1"],
+      "expected": "allowed"
+    },
+    {
+      "name": "allow_override_does_not_extend",
+      "preset": "external_only",
+      "allow": ["10.42.0.0/16"],
+      "ips": ["10.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "internal_only_blocks_unlisted",
+      "preset": "internal_only",
+      "allow": ["203.0.113.0/24"],
+      "ips": ["8.8.8.8"],
+      "expected": "blocked",
+      "reason_type": "not_in_allow_list"
+    },
+    {
+      "name": "internal_only_allows_listed",
+      "preset": "internal_only",
+      "allow": ["203.0.113.0/24"],
+      "ips": ["203.0.113.1"],
+      "expected": "allowed"
+    },
+    {
+      "name": "none_preset_allows_everything",
+      "preset": "none",
+      "ips": ["10.0.0.1"],
+      "expected": "allowed"
+    },
+    {
+      "name": "empty_ips_rejected",
+      "preset": "external_only",
+      "ips": [],
+      "expected": "blocked",
+      "reason_type": "dns_empty_response"
+    },
+    {
+      "name": "multi_ip_all_must_pass",
+      "preset": "external_only",
+      "ips": ["8.8.8.8", "10.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "second IP is private"
+    },
+    {
+      "name": "multi_ip_all_public_passes",
+      "preset": "external_only",
+      "ips": ["8.8.8.8", "8.8.4.4"],
+      "expected": "allowed"
+    },
+    {
+      "name": "ipv4_mapped_ipv6_blocked",
+      "preset": "external_only",
+      "ips": ["::ffff:10.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-mapped IPv6 form of private address"
+    },
+    {
+      "name": "aws_imdsv2_ipv6_blocked",
+      "preset": "external_only",
+      "ips": ["fd00:ec2::254"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr"
+    },
+    {
+      "name": "ipv4_multicast_blocked",
+      "preset": "external_only",
+      "ips": ["224.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4 multicast (RFC 5771)"
+    },
+    {
+      "name": "ipv6_multicast_blocked",
+      "preset": "external_only",
+      "ips": ["ff02::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv6 multicast (RFC 4291)"
+    },
+    {
+      "name": "srv6_sid_blocked",
+      "preset": "external_only",
+      "ips": ["5f00::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "Segment Routing SRv6 SIDs (RFC 9602)"
+    },
+    {
+      "name": "ipv6_documentation_rfc9637_blocked",
+      "preset": "external_only",
+      "ips": ["3fff::1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv6 documentation range (RFC 9637)"
+    },
+    {
+      "name": "cloud_aws_blocks_imds",
+      "preset": "external_only",
+      "cloud_providers": ["aws"],
+      "ips": ["169.254.169.254"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "AWS IMDS endpoint blocked by cloud module"
+    },
+    {
+      "name": "cloud_aws_blocks_ecs_metadata",
+      "preset": "external_only",
+      "cloud_providers": ["aws"],
+      "ips": ["169.254.170.2"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "AWS ECS metadata endpoint blocked by cloud module"
+    },
+    {
+      "name": "cloud_aws_blocks_imdsv2_ipv6",
+      "preset": "external_only",
+      "cloud_providers": ["aws"],
+      "ips": ["fd00:ec2::254"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "AWS IMDSv2 IPv6 endpoint blocked by cloud module"
+    },
+    {
+      "name": "cloud_azure_blocks_wireserver",
+      "preset": "external_only",
+      "cloud_providers": ["azure"],
+      "ips": ["168.63.129.16"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "Azure wireserver/DHCP blocked by cloud module"
+    },
+    {
+      "name": "cloud_gcp_blocks_metadata",
+      "preset": "external_only",
+      "cloud_providers": ["gcp"],
+      "ips": ["169.254.169.254"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "GCP metadata server blocked by cloud module"
+    },
+    {
+      "name": "cloud_multiple_providers_blocks_all",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["168.63.129.16"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "All providers combined still block Azure wireserver"
+    },
+    {
+      "name": "cloud_providers_allow_public",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["93.184.216.34"],
+      "expected": "allowed",
+      "note": "Cloud modules do not block public IPs"
+    }
+  ]
+}

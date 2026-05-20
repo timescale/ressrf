@@ -1,0 +1,55 @@
+{
+  "description": "IPv4-to-IPv6 mapping normalization test vectors. Validates that IPv4 addresses and their mapped IPv6 forms are treated identically.",
+  "cases": [
+    {
+      "name": "mapped_loopback",
+      "ipv4": "127.0.0.1",
+      "ipv6_mapped": "::ffff:127.0.0.1",
+      "cidr": "127.0.0.0/8",
+      "both_contained": true
+    },
+    {
+      "name": "mapped_private_10",
+      "ipv4": "10.0.0.1",
+      "ipv6_mapped": "::ffff:10.0.0.1",
+      "cidr": "10.0.0.0/8",
+      "both_contained": true
+    },
+    {
+      "name": "mapped_private_192",
+      "ipv4": "192.168.1.1",
+      "ipv6_mapped": "::ffff:192.168.1.1",
+      "cidr": "192.168.0.0/16",
+      "both_contained": true
+    },
+    {
+      "name": "mapped_imds",
+      "ipv4": "169.254.169.254",
+      "ipv6_mapped": "::ffff:169.254.169.254",
+      "cidr": "169.254.169.254/32",
+      "both_contained": true
+    },
+    {
+      "name": "mapped_public",
+      "ipv4": "8.8.8.8",
+      "ipv6_mapped": "::ffff:8.8.8.8",
+      "cidr": "10.0.0.0/8",
+      "both_contained": false,
+      "note": "public IP should not match private range in either form"
+    },
+    {
+      "name": "mapped_cgnat",
+      "ipv4": "100.64.0.1",
+      "ipv6_mapped": "::ffff:100.64.0.1",
+      "cidr": "100.64.0.0/10",
+      "both_contained": true
+    },
+    {
+      "name": "mapped_azure_wireserver",
+      "ipv4": "168.63.129.16",
+      "ipv6_mapped": "::ffff:168.63.129.16",
+      "cidr": "168.63.129.16/32",
+      "both_contained": true
+    }
+  ]
+}

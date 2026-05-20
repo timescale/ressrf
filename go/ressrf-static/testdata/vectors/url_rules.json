@@ -1,0 +1,144 @@
+{
+  "description": "URL rule allow/deny test vectors. Tests glob matching, regex, bypass_ip_check, and deny-before-allow precedence.",
+  "cases": [
+    {
+      "name": "deny_host_glob_blocks_internal",
+      "preset": "external_only",
+      "url_rules": {
+        "deny": [{"host": "*.internal"}]
+      },
+      "url": "https://db.internal/api",
+      "expected": "blocked",
+      "note": "Host glob deny rule blocks *.internal"
+    },
+    {
+      "name": "deny_host_glob_does_not_block_public",
+      "preset": "external_only",
+      "url_rules": {
+        "deny": [{"host": "*.internal"}]
+      },
+      "url": "https://api.stripe.com/v1/charges",
+      "expected": "allowed",
+      "note": "Deny rule does not match public host; no allow rules so NoMatch falls through"
+    },
+    {
+      "name": "allow_host_glob_allows_match",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"scheme": "https", "host": "*.stripe.com", "path": "/v1/**"}]
+      },
+      "url": "https://api.stripe.com/v1/charges",
+      "expected": "allowed",
+      "note": "Allow rule matches: scheme, host, and path all pass"
+    },
+    {
+      "name": "allow_host_glob_blocks_non_matching",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"scheme": "https", "host": "*.stripe.com", "path": "/v1/**"}]
+      },
+      "url": "https://evil.com/steal",
+      "expected": "blocked",
+      "note": "Allow rules configured but URL does not match any; blocked"
+    },
+    {
+      "name": "allow_wrong_scheme_blocked",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"scheme": "https", "host": "*.stripe.com", "path": "/**"}]
+      },
+      "url": "http://api.stripe.com/v1/charges",
+      "expected": "blocked",
+      "note": "Scheme mismatch: rule requires https but URL is http"
+    },
+    {
+      "name": "allow_wrong_path_blocked",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"scheme": "https", "host": "*.stripe.com", "path": "/v1/*"}]
+      },
+      "url": "https://api.stripe.com/v2/charges",
+      "expected": "blocked",
+      "note": "Path does not match /v1/*"
+    },
+    {
+      "name": "deny_regex_blocks_plaintext",
+      "preset": "external_only",
+      "url_rules": {
+        "deny": [{"regex": "^http://.*$"}]
+      },
+      "url": "http://example.com/path",
+      "expected": "blocked",
+      "note": "Regex deny rule matches plaintext HTTP"
+    },
+    {
+      "name": "deny_regex_does_not_block_https",
+      "preset": "external_only",
+      "url_rules": {
+        "deny": [{"regex": "^http://.*$"}]
+      },
+      "url": "https://example.com/path",
+      "expected": "allowed",
+      "note": "Regex deny does not match HTTPS; no allow rules so NoMatch"
+    },
+    {
+      "name": "bypass_ip_check_allows_internal_url",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"host": "internal-api.company.com", "bypass_ip_check": true}]
+      },
+      "url": "https://internal-api.company.com/data",
+      "expected": "allowed",
+      "note": "bypass_ip_check=true skips IP validation entirely"
+    },
+    {
+      "name": "deny_takes_precedence_over_allow",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"host": "*.internal"}],
+        "deny": [{"host": "*.internal"}]
+      },
+      "url": "https://db.internal/query",
+      "expected": "blocked",
+      "note": "Deny rules are evaluated before allow rules"
+    },
+    {
+      "name": "no_url_rules_passes_through",
+      "preset": "external_only",
+      "url_rules": {},
+      "url": "https://example.com/path",
+      "expected": "allowed",
+      "note": "Empty url_rules = no URL-level filtering; falls through to IP check (public IP passes)"
+    },
+    {
+      "name": "multi_level_wildcard_path",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"host": "api.example.com", "path": "/api/**"}]
+      },
+      "url": "https://api.example.com/api/v1/users/123",
+      "expected": "allowed",
+      "note": "** matches multiple path segments"
+    },
+    {
+      "name": "single_wildcard_path_no_deep_match",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"host": "api.example.com", "path": "/api/*"}]
+      },
+      "url": "https://api.example.com/api/v1/users",
+      "expected": "blocked",
+      "note": "Single * only matches one segment, not multiple"
+    },
+    {
+      "name": "host_glob_case_insensitive",
+      "preset": "external_only",
+      "url_rules": {
+        "allow": [{"host": "*.Example.COM", "path": "/**"}]
+      },
+      "url": "https://API.example.com/data",
+      "expected": "allowed",
+      "note": "Host matching is case-insensitive"
+    }
+  ]
+}
