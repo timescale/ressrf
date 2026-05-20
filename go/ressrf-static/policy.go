@@ -214,10 +214,10 @@ func (p *Policy) IsAllowed(ctx context.Context, rawURL string) error {
 	switch p.urlRules.Evaluate(rawURL) {
 	case URLRuleDenied:
 		err := &BlockedError{Reason: ReasonURLRuleDenied, URL: rawURL}
-		p.emitURLValidated(rawURL, false, string(err.Reason))
+		p.emitURLValidated(rawURL, false, string(err.Reason), "")
 		return err
 	case URLRuleAllowedBypassIP:
-		p.emitURLValidated(rawURL, true, "url_rule_allow_bypass_ip")
+		p.emitURLValidated(rawURL, true, "", "url_rule_allow_bypass_ip")
 		return nil
 	case URLRuleAllowed, URLRuleNoMatch:
 		// Fall through to structural validation.
@@ -225,10 +225,14 @@ func (p *Policy) IsAllowed(ctx context.Context, rawURL string) error {
 
 	// Step 2: structural validation + bare-IP IP check.
 	if err := p.validator.ValidateURL(rawURL, p); err != nil {
-		p.emitURLValidated(rawURL, false, blockedReason(err))
+		matchReason := ""
+		if be, ok := err.(*BlockedError); ok {
+			matchReason = be.DetailText
+		}
+		p.emitURLValidated(rawURL, false, blockedReason(err), matchReason)
 		return err
 	}
-	p.emitURLValidated(rawURL, true, "")
+	p.emitURLValidated(rawURL, true, "", "")
 	return nil
 }
 
@@ -239,19 +243,34 @@ func (p *Policy) IsAllowed(ctx context.Context, rawURL string) error {
 //   - InternalOnly: every IP must be in the allow set.
 //   - ExternalOnly: allow set wins; otherwise reject if in deny set; else allow.
 //   - None: only consult the deny set (user-supplied).
+//
+// Callers that have a hostname context (TCP dialer, HTTP transport) should
+// prefer ValidateHost so the audit event includes the host.
 func (p *Policy) IsNetworkAllowed(ips []string) error {
+	return p.validateAddresses("", ips)
+}
+
+// ValidateHost is IsNetworkAllowed plus a host label. Audit events surface
+// the host (and the resolved IPs) so operators can correlate by hostname.
+func (p *Policy) ValidateHost(host string, ips []string) error {
+	return p.validateAddresses(host, ips)
+}
+
+func (p *Policy) validateAddresses(host string, ips []string) error {
 	if len(ips) == 0 {
-		err := &BlockedError{Reason: ReasonDNSEmptyResponse, DetailText: "DNS returned no addresses"}
-		p.emitHostValidated("", nil, false, string(err.Reason))
+		err := &BlockedError{Reason: ReasonDNSEmptyResponse, Host: host, DetailText: "DNS returned no addresses"}
+		p.emitHostValidated(host, nil, false, string(err.Reason), "")
 		return err
 	}
 	for _, ip := range ips {
 		if err := p.checkOneIP(ip); err != nil {
-			p.emitHostValidated("", []string{ip}, false, string(err.(*BlockedError).Reason))
-			return err
+			be := err.(*BlockedError)
+			be.Host = host
+			p.emitHostValidated(host, []string{ip}, false, string(be.Reason), be.DetailText)
+			return be
 		}
 	}
-	p.emitHostValidated("", ips, true, "")
+	p.emitHostValidated(host, ips, true, "", "")
 	return nil
 }
 
@@ -297,21 +316,21 @@ func (p *Policy) CloudModules() []string {
 // emitURLValidated / emitHostValidated are no-ops when no audit sink is
 // attached. They centralise the event-building logic so each decision point
 // stays a one-liner.
-func (p *Policy) emitURLValidated(rawURL string, allowed bool, reason string) {
+func (p *Policy) emitURLValidated(rawURL string, allowed bool, reason, matchReason string) {
 	if p.auditSink == nil {
 		return
 	}
 	host, scheme := extractHostScheme(rawURL)
-	p.auditSink.Emit(&URLValidated{URL: rawURL, Scheme: scheme, Host: host, Allowed: allowed, Reason: reason})
+	p.auditSink.Emit(&URLValidated{URL: rawURL, Scheme: scheme, Host: host, Allowed: allowed, Reason: reason, MatchReason: matchReason})
 }
 
-func (p *Policy) emitHostValidated(host string, ips []string, allowed bool, reason string) {
+func (p *Policy) emitHostValidated(host string, ips []string, allowed bool, reason, matchReason string) {
 	if p.auditSink == nil {
 		return
 	}
 	cp := make([]string, len(ips))
 	copy(cp, ips)
-	p.auditSink.Emit(&HostValidated{Host: host, ResolvedIPs: cp, Allowed: allowed, Reason: reason})
+	p.auditSink.Emit(&HostValidated{Host: host, ResolvedIPs: cp, Allowed: allowed, Reason: reason, MatchReason: matchReason})
 }
 
 // blockedReason extracts the reason string from an error. Returns the empty

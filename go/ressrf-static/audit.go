@@ -21,18 +21,20 @@ type HostValidated struct {
 	Host        string
 	ResolvedIPs []string
 	Allowed     bool
-	Reason      string // empty when Allowed
+	Reason      string // reason code, empty when Allowed
+	MatchReason string // detailed match info (e.g. CIDR string that matched), empty when Allowed
 }
 
 func (*HostValidated) EventKind() string { return "host_validated" }
 
 // URLValidated fires when a URL goes through the full IsAllowed pipeline.
 type URLValidated struct {
-	URL     string
-	Scheme  string
-	Host    string
-	Allowed bool
-	Reason  string // empty when Allowed
+	URL         string
+	Scheme      string
+	Host        string
+	Allowed     bool
+	Reason      string // reason code, empty when Allowed
+	MatchReason string // detailed match info, empty when Allowed
 }
 
 func (*URLValidated) EventKind() string { return "url_validated" }
