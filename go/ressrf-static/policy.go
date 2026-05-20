@@ -33,6 +33,11 @@ type Policy struct {
 	validator *URIValidator
 	cloudMods []string // recorded for audit / introspection
 
+	// allowPlaintextHTTP disables the CheckRedirect HTTPS→HTTP downgrade
+	// rejection. Default false (downgrade blocked). Mirrors Rust
+	// ProtocolRules.allow_plaintext_http.
+	allowPlaintextHTTP bool
+
 	// Audit sink (Task 8) is wired in at Build time. Nil = no emission.
 	auditSink AuditSink
 }
@@ -51,6 +56,8 @@ type PolicyBuilder struct {
 	// suffixes beyond what cloud modules contribute.
 	extraTrustedSuffixes []string
 	extraDeniedSuffixes  []string
+
+	allowPlaintextHTTP bool
 }
 
 // NewPolicyBuilder starts a builder from the given preset.
@@ -116,6 +123,14 @@ func (b *PolicyBuilder) WithDeniedSuffixes(suffixes ...string) *PolicyBuilder {
 	return b
 }
 
+// WithAllowPlaintextHTTP toggles the HTTPS→HTTP downgrade rejection in the
+// HTTP CheckRedirect hook. Default behavior (when not called or when called
+// with false) is to reject downgrades — matches Rust ProtocolRules default.
+func (b *PolicyBuilder) WithAllowPlaintextHTTP(allow bool) *PolicyBuilder {
+	b.allowPlaintextHTTP = allow
+	return b
+}
+
 // Build compiles the policy. Returns an error if any CIDR is malformed, any
 // URL regex fails to compile, or any cloud provider name is unknown.
 func (b *PolicyBuilder) Build() (*Policy, error) {
@@ -178,13 +193,14 @@ func (b *PolicyBuilder) Build() (*Policy, error) {
 	}
 
 	p := &Policy{
-		preset:    b.preset,
-		denySet:   deny,
-		allowSet:  allow,
-		urlRules:  b.urlRules,
-		validator: validator,
-		cloudMods: append([]string(nil), b.cloudProviders...),
-		auditSink: b.auditSink,
+		preset:             b.preset,
+		denySet:            deny,
+		allowSet:           allow,
+		urlRules:           b.urlRules,
+		validator:          validator,
+		cloudMods:          append([]string(nil), b.cloudProviders...),
+		allowPlaintextHTTP: b.allowPlaintextHTTP,
+		auditSink:          b.auditSink,
 	}
 	if p.auditSink != nil {
 		p.auditSink.Emit(&PolicyCreated{

@@ -1,6 +1,15 @@
 package ressrfstatic
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+// ErrBlocked is the sentinel returned (wrapped) for every policy-denied
+// destination. Use errors.Is(err, ErrBlocked) to distinguish policy
+// rejections from transient network errors. Matches go/ressrf for callers
+// that can swap imports.
+var ErrBlocked = errors.New("ressrfstatic: request blocked by SSRF policy")
 
 // DenyReason classifies why a URL or IP was blocked. Matches the
 // crates/ressrf-core/src/error.rs::DenyReason enum so audit consumers across
@@ -48,4 +57,15 @@ func (e *BlockedError) Error() string {
 	default:
 		return fmt.Sprintf("ressrfstatic: blocked %s", e.Reason)
 	}
+}
+
+// Is reports whether target matches ErrBlocked. Lets callers use
+// errors.Is(err, ErrBlocked) regardless of which Reason fired.
+func (e *BlockedError) Is(target error) bool {
+	return target == ErrBlocked
+}
+
+// Unwrap exposes the sentinel for errors.Is traversal.
+func (e *BlockedError) Unwrap() error {
+	return ErrBlocked
 }
