@@ -60,6 +60,93 @@ sshClient, err := p.SSHDial(ctx, "host:22", sshClientConfig)
 
 The public API mirrors `go/ressrf` so callers can swap imports in most cases.
 
+## Recipe: long-running service with a shared policy
+
+`Policy` is documented as safe for concurrent use and the per-check cost is
+sub-microsecond, so a long-running service should build the policy **once at
+process start** and share it across all requests. The pattern below is what
+[tiger-connect's `internal/netguard`][tc-netguard] uses to enforce SSRF on its
+connector workers (Postgres, Kafka, HTTP, SSH).
+
+```go
+package netguard
+
+import (
+	"context"
+	"net"
+	"sync"
+
+	"github.com/timescale/ressrf/go/ressrf-static"
+	"github.com/timescale/ressrf/go/ressrf-static/cloud/aws" // only AWS — no Azure/GCP bytes in the binary
+)
+
+// ErrBlocked re-exports the sentinel so existing callers that do
+// errors.Is(err, netguard.ErrBlocked) keep working unchanged.
+var ErrBlocked = ressrfstatic.ErrBlocked
+
+var (
+	policyOnce sync.Once
+	policy     *ressrfstatic.Policy
+)
+
+// guard returns the lazily-built singleton policy. Built once (~56 µs), used
+// for the life of the process. Bundles the IANA tiers via the ExternalOnly
+// preset plus AWS metadata-endpoint denial via the aws sub-package.
+func guard() *ressrfstatic.Policy {
+	policyOnce.Do(func() {
+		p, err := ressrfstatic.NewPolicyBuilder(ressrfstatic.PresetExternalOnly).
+			WithCloudModule(aws.Module()).
+			Build()
+		if err != nil {
+			panic("netguard: policy build: " + err.Error())
+		}
+		policy = p
+	})
+	return policy
+}
+
+// Pre-flight check (fail before pool.Begin / before issuing the HTTP request).
+func ValidateURL(rawURL string) error {
+	return guard().IsAllowed(context.Background(), rawURL)
+}
+
+// Transport-layer dialer. Plug into:
+//   - pgx.ConnConfig{DialFunc: SafeDialContext}
+//   - kafka.Dialer{DialFunc: SafeDialContext}
+//   - http.Transport{DialContext: SafeDialContext}
+//   - ssh: use guard().SSHDial directly.
+func SafeDialer() *net.Dialer { return guard().SafeDialer() }
+
+func SafeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	return guard().DialContext(ctx, network, addr)
+}
+```
+
+Then each consumer is a one-liner:
+
+```go
+// HTTP — replace http.DefaultTransport.DialContext
+transport := http.DefaultTransport.(*http.Transport).Clone()
+transport.DialContext = netguard.SafeDialContext
+
+// pgx
+cfg, _ := pgx.ParseConfig(connStr)
+cfg.DialFunc = netguard.SafeDialContext
+
+// SSH
+sshClient, err := guard().SSHDial(ctx, "host:22", sshConfig)
+```
+
+Two reasons this is faster than building per-request:
+1. `Build()` is amortized to ~zero per request instead of paid 56 µs each time.
+2. The `Control` hook on `SafeDialer` is the canonical security boundary
+   (post-DNS, defeats rebinding). Existing wrappers that call `net.LookupIP`
+   themselves *before* the dial can be deleted — the dialer already does DNS
+   once, and the `Control` hook runs on whatever was resolved. Saves one
+   lookup per request.
+
+[tc-netguard]: https://github.com/timescale/tiger-connect/pull/366
+
 ## Architecture
 
 ```
