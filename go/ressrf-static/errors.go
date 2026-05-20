@@ -20,6 +20,7 @@ const (
 	ReasonIPDeniedByCIDR           DenyReason = "ip_denied_by_cidr"
 	ReasonIPNotInAllowList         DenyReason = "ip_not_in_allow_list"
 	ReasonURLRuleDenied            DenyReason = "url_rule_denied"
+	ReasonDNSEmptyResponse         DenyReason = "dns_empty_response"
 )
 
 // BlockedError is returned by Policy.IsAllowed and IsNetworkAllowed when a
