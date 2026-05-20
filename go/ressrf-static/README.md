@@ -9,9 +9,11 @@ re-implemented in Go.
 
 - **No CGO, no WASM runtime** — `go list -m -deps` shows zero ressrf-specific
   dependencies beyond `golang.org/x/crypto` (for SSH).
-- **Native speed** — `IsAllowed` runs in ~1.3 µs vs ~75 µs through WASM; build
-  cost is ~55 µs vs ~150 ms (one-shot CLIs benefit a lot).
-- **Smaller binaries** — no embedded ~1 MB `core.wasm`.
+- **Smaller binaries** — no embedded ~1 MB `core.wasm`, no wazero (~1 MB of
+  Go code).
+- **Faster** — per-check operations are ~2–4× faster than the WASM-backed
+  package; `PolicyBuild` is ~140× faster (one-shot CLIs benefit). Numbers
+  below.
 
 ## When to prefer the WASM-backed package
 
@@ -122,26 +124,40 @@ ok  github.com/timescale/ressrf/go/ressrf-static  1.5s
 
 ## Benchmarks
 
-Apple M1 Max, Go 1.26:
+Apple M1 Max, Go 1.26, `-benchtime=5s` on both sides for equal sampling:
 
 ```
-BenchmarkPolicyBuild           21559    55_122 ns/op   14697 B/op    243 allocs/op
-BenchmarkIsAllowed            896644     1_291 ns/op     736 B/op     14 allocs/op
-BenchmarkIsAllowedBlocked    1617927       740 ns/op     448 B/op      6 allocs/op
-BenchmarkIsNetworkAllowed   2651221       451 ns/op     128 B/op      2 allocs/op
+ressrf-static (native):
+BenchmarkPolicyBuild         109004   55_911 ns/op   14_696 B/op   243 allocs/op
+BenchmarkIsAllowed          4673055    1_287 ns/op      736 B/op    14 allocs/op
+BenchmarkIsAllowedBlocked   8149558      815 ns/op      448 B/op     6 allocs/op
+BenchmarkIsNetworkAllowed  12874878      481 ns/op      128 B/op     2 allocs/op
+
+ressrf (WASM, same hardware, same benchtime):
+BenchmarkPolicyBuild            720  7_793_066 ns/op  3_366_025 B/op   4_402 allocs/op
+BenchmarkIsAllowed          2512359      2_399 ns/op        757 B/op      14 allocs/op
+BenchmarkIsAllowedBlocked   1951185      3_078 ns/op        871 B/op      16 allocs/op
+BenchmarkIsNetworkAllowed   3956259      1_508 ns/op        580 B/op      14 allocs/op
 ```
 
-For comparison, the WASM-backed `go/ressrf` package on the same hardware:
+| Op | Native | WASM | Speedup |
+|---|---:|---:|---:|
+| `PolicyBuild` | 56 µs | 7.8 ms | ~140× |
+| `IsAllowed` (allowed) | 1.29 µs | 2.40 µs | ~1.9× |
+| `IsAllowed` (blocked) | 815 ns | 3.08 µs | ~3.8× |
+| `IsNetworkAllowed` | 481 ns | 1.51 µs | ~3.1× |
+
+Per-check operations are 2–4× faster. The big win is `PolicyBuild` (~140×):
+the WASM-backed version pays for module instantiation each time. For
+long-running services that build a policy once, this barely matters; for
+short-lived CLIs or per-request policy construction, it's significant.
+
+Reproduce with:
 
 ```
-BenchmarkPolicyBuild              2  147_617_312 ns/op  34_468_864 B/op  47_638 allocs/op
-BenchmarkIsAllowed                2       75_834 ns/op       1_720 B/op       37 allocs/op
-BenchmarkIsAllowedBlocked         2       40_958 ns/op         680 B/op       17 allocs/op
-BenchmarkIsNetworkAllowed         2       22_521 ns/op       1_168 B/op       28 allocs/op
+go test -bench=. -benchmem -run=^$ -benchtime=5s ./go/ressrf-static/...
+go test -bench=. -benchmem -run=^$ -benchtime=5s ./go/ressrf/...
 ```
-
-So roughly 50–60× faster on per-check operations and three orders of magnitude
-faster on policy construction (since there's no WASM module to load).
 
 ## Caveats / non-goals
 
