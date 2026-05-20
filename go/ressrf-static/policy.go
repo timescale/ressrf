@@ -43,14 +43,16 @@ type Policy struct {
 }
 
 // PolicyBuilder constructs an immutable Policy. Mirrors the fluent API
-// of go/ressrf/policy.go::PolicyBuilder so callers can swap imports.
+// of go/ressrf/policy.go::PolicyBuilder so callers can swap imports
+// (with the cloud-provider API as the only intentional divergence —
+// see WithCloudModule).
 type PolicyBuilder struct {
-	preset         Preset
-	allowedCIDRs   []string
-	deniedCIDRs    []string
-	cloudProviders []string
-	urlRules       URLRuleset
-	auditSink      AuditSink
+	preset       Preset
+	allowedCIDRs []string
+	deniedCIDRs  []string
+	cloudModules []CloudModule
+	urlRules     URLRuleset
+	auditSink    AuditSink
 
 	// extension hooks: lets advanced callers attach extra trusted/denied
 	// suffixes beyond what cloud modules contribute.
@@ -78,10 +80,30 @@ func (b *PolicyBuilder) WithDeniedCIDRs(cidrs ...string) *PolicyBuilder {
 	return b
 }
 
-// WithCloudProviders attaches cloud-provider deny + suffix data.
-// Valid names: "aws", "azure", "gcp". Unknown names cause Build() to fail.
-func (b *PolicyBuilder) WithCloudProviders(providers ...string) *PolicyBuilder {
-	b.cloudProviders = append(b.cloudProviders, providers...)
+// WithCloudModule attaches a cloud-provider's deny CIDRs to the policy.
+// Construct CloudModule values via the provider sub-packages, e.g.:
+//
+//	import "github.com/timescale/ressrf/go/ressrf-static/cloud/aws"
+//	b.WithCloudModule(aws.Module())
+//
+// Only the JSON for sub-packages you actually import is linked into the
+// binary — the Go linker prunes unimported provider packages, which
+// matters because the Azure dataset alone is ~3.1 MB.
+//
+// To attach more than one provider, use WithCloudModules or chain
+// WithCloudModule calls.
+func (b *PolicyBuilder) WithCloudModule(m CloudModule) *PolicyBuilder {
+	b.cloudModules = append(b.cloudModules, m)
+	return b
+}
+
+// WithCloudModules is a variadic shortcut for multiple WithCloudModule
+// calls. Pairs with the cloud/all helper:
+//
+//	import "github.com/timescale/ressrf/go/ressrf-static/cloud/all"
+//	b.WithCloudModules(all.Modules()...)
+func (b *PolicyBuilder) WithCloudModules(modules ...CloudModule) *PolicyBuilder {
+	b.cloudModules = append(b.cloudModules, modules...)
 	return b
 }
 
@@ -156,9 +178,11 @@ func (b *PolicyBuilder) Build() (*Policy, error) {
 		}
 	}
 
-	// Cloud modules contribute deny CIDRs + denied suffixes + trusted suffixes.
-	for _, name := range b.cloudProviders {
-		if err := applyCloudModule(name, deny, validator); err != nil {
+	// Cloud modules contribute deny CIDRs (matching the WASM ABI — domain
+	// suffixes are opt-in via WithDeniedSuffixes / WithTrustedSuffixes
+	// using the helpers exported by the provider sub-packages).
+	for _, m := range b.cloudModules {
+		if err := applyCloudModule(m, deny); err != nil {
 			return nil, err
 		}
 	}
@@ -198,7 +222,7 @@ func (b *PolicyBuilder) Build() (*Policy, error) {
 		allowSet:           allow,
 		urlRules:           b.urlRules,
 		validator:          validator,
-		cloudMods:          append([]string(nil), b.cloudProviders...),
+		cloudMods:          cloudModuleNames(b.cloudModules),
 		allowPlaintextHTTP: b.allowPlaintextHTTP,
 		auditSink:          b.auditSink,
 	}
@@ -319,10 +343,21 @@ func (p *Policy) checkOneIP(ip string) error {
 func (p *Policy) PresetName() Preset { return p.preset }
 
 // CloudModules returns the list of cloud provider names this policy was
-// built with.
+// built with (one per WithCloudModule call).
 func (p *Policy) CloudModules() []string {
 	out := make([]string, len(p.cloudMods))
 	copy(out, p.cloudMods)
+	return out
+}
+
+// cloudModuleNames extracts the Name field from a slice of CloudModules.
+// Used for audit / introspection so callers can see which providers
+// contributed without exposing the raw JSON payloads.
+func cloudModuleNames(ms []CloudModule) []string {
+	out := make([]string, len(ms))
+	for i, m := range ms {
+		out[i] = m.Name
+	}
 	return out
 }
 

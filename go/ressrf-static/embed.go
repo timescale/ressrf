@@ -9,15 +9,6 @@ import (
 //go:embed config/ip_ranges.json
 var ipRangesJSON []byte
 
-//go:embed config/domains_aws.json
-var awsJSON []byte
-
-//go:embed config/domains_azure.json
-var azureJSON []byte
-
-//go:embed config/domains_gcp.json
-var gcpJSON []byte
-
 // CIDREntry is one row in an IP-range tier. Schema matches the canonical
 // crates/ressrf-core/config/ip_ranges.json — fields are optional metadata
 // preserved for audit messages.
@@ -59,7 +50,9 @@ type CloudServiceRanges struct {
 	Prefixes  map[string][]string `json:"prefixes"`
 }
 
-// CloudFile is the parsed shape of config/domains_{aws,azure,gcp}.json.
+// CloudFile is the parsed shape of a domains_{provider}.json file. Each
+// cloud sub-package (cloud/aws, cloud/azure, cloud/gcp) embeds its own
+// JSON and parses it into this shape via ParseCloudFile.
 type CloudFile struct {
 	Provider              string             `json:"provider"`
 	LastUpdated           string             `json:"last_updated"`
@@ -78,23 +71,14 @@ func LoadIPRanges() (*IPRangesFile, error) {
 	return &f, nil
 }
 
-// LoadCloud parses the embedded data for a known cloud provider.
-// Valid names: "aws", "azure", "gcp".
-func LoadCloud(name string) (*CloudFile, error) {
-	var raw []byte
-	switch name {
-	case "aws":
-		raw = awsJSON
-	case "azure":
-		raw = azureJSON
-	case "gcp":
-		raw = gcpJSON
-	default:
-		return nil, fmt.Errorf("ressrfstatic: unknown cloud provider %q", name)
+// ParseCloudFile decodes the JSON payload carried by a CloudModule.
+// Called once per Build() by applyCloudModule; sub-packages return the
+// raw bytes via Module().JSON and let the main package own parsing so
+// schema changes don't have to propagate to every cloud package.
+func ParseCloudFile(raw []byte) (*CloudFile, error) {
+	var c CloudFile
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return nil, fmt.Errorf("ressrfstatic: parse cloud file: %w", err)
 	}
-	var f CloudFile
-	if err := json.Unmarshal(raw, &f); err != nil {
-		return nil, fmt.Errorf("ressrfstatic: parse domains_%s.json: %w", name, err)
-	}
-	return &f, nil
+	return &c, nil
 }

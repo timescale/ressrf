@@ -1,59 +1,48 @@
 package ressrfstatic
 
-import "fmt"
+import (
+	"fmt"
 
-// applyCloudModule loads the embedded data for `name` and appends only its
-// deny CIDRs to the policy.
+	"github.com/timescale/ressrf/go/ressrf-static/cloudmod"
+)
+
+// CloudModule is the canonical alias for the cloud-provider value type.
+// The concrete definition lives in package cloudmod so the cloud/*
+// sub-packages can construct CloudModules without importing the main
+// package (which would create an import cycle with the main package's
+// own test files that use the providers).
 //
-// This matches the WASM ABI surface (crates/ressrf-wasm/src/lib.rs calls
-// builder.with_cloud(provider) which is deny-CIDRs-only). The domain-level
-// suffixes (DeniedDomainSuffixes / ServiceDomainSuffixes) are NOT applied
-// automatically — they're an opt-in via PolicyBuilder.WithDeniedSuffixes /
-// WithTrustedSuffixes. This keeps go/ressrf-static behaviourally identical
-// to the WASM-backed go/ressrf for the parity gate in Task 12.
+// Construct via the helpers in
+// github.com/timescale/ressrf/go/ressrf-static/cloud/{aws,azure,gcp} and
+// pass to PolicyBuilder.WithCloudModule.
+type CloudModule = cloudmod.Module
+
+// applyCloudModule parses a module's JSON and appends its deny CIDRs to
+// the policy's deny set. Matches the WASM ABI surface (deny-CIDRs-only).
+//
+// Domain-level suffixes (DeniedDomainSuffixes / ServiceDomainSuffixes)
+// are NOT applied automatically — they're an opt-in via the suffix
+// accessors on each provider sub-package, piped through
+// PolicyBuilder.WithDeniedSuffixes / WithTrustedSuffixes. This keeps
+// go/ressrf-static behaviourally identical to the WASM-backed go/ressrf
+// for the parity gate in parity_test.go.
 //
 // The ServiceRanges field (per-service IP prefixes) is metadata used by
 // audit "match_reason" strings in the Rust core; we don't surface it.
-func applyCloudModule(name string, deny *CIDRSet, _ *URIValidator) error {
-	c, err := LoadCloud(name)
+func applyCloudModule(m CloudModule, deny *CIDRSet) error {
+	if len(m.JSON) == 0 {
+		return fmt.Errorf("ressrfstatic: cloud module %q has empty JSON payload (did you call Module() with a nil package?)", m.Name)
+	}
+	c, err := ParseCloudFile(m.JSON)
 	if err != nil {
-		return err
+		return fmt.Errorf("ressrfstatic: cloud module %q: %w", m.Name, err)
 	}
 	for _, r := range c.DenyRanges {
-		cidr, err := ParseCIDR(r.CIDR)
-		if err != nil {
-			return fmt.Errorf("ressrfstatic: bad %s cloud CIDR %q: %w", name, r.CIDR, err)
+		cidr, perr := ParseCIDR(r.CIDR)
+		if perr != nil {
+			return fmt.Errorf("ressrfstatic: bad %s cloud CIDR %q: %w", m.Name, r.CIDR, perr)
 		}
 		deny.Add(cidr)
 	}
 	return nil
-}
-
-// CloudDeniedSuffixesFor returns the denied domain suffix list for a cloud
-// provider. Callers who want domain-level denial for cloud internal DNS can
-// pipe this into PolicyBuilder.WithDeniedSuffixes:
-//
-//	suffixes, _ := ressrfstatic.CloudDeniedSuffixesFor("aws")
-//	b.WithCloudProviders("aws").WithDeniedSuffixes(suffixes...)
-func CloudDeniedSuffixesFor(name string) ([]string, error) {
-	c, err := LoadCloud(name)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, len(c.DeniedDomainSuffixes))
-	copy(out, c.DeniedDomainSuffixes)
-	return out, nil
-}
-
-// CloudServiceSuffixesFor returns the legitimate-service suffix list for a
-// cloud provider (e.g. ".amazonaws.com"). Pair with WithTrustedSuffixes to
-// opt into strict trusted-suffix allowlisting.
-func CloudServiceSuffixesFor(name string) ([]string, error) {
-	c, err := LoadCloud(name)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, len(c.ServiceDomainSuffixes))
-	copy(out, c.ServiceDomainSuffixes)
-	return out, nil
 }

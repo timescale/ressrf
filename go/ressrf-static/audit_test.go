@@ -64,7 +64,7 @@ func runAuditCase(t *testing.T, c auditCase) {
 	b := NewPolicyBuilder(preset).WithAuditSink(sink)
 	if mods, ok := c.Config["cloud_modules"].([]any); ok {
 		for _, m := range mods {
-			b.WithCloudProviders(m.(string))
+			b.WithCloudModule(cloudModuleByName(t, m.(string)))
 		}
 	}
 

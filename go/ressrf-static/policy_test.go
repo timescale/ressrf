@@ -4,7 +4,30 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/timescale/ressrf/go/ressrf-static/cloud/aws"
+	"github.com/timescale/ressrf/go/ressrf-static/cloud/azure"
+	"github.com/timescale/ressrf/go/ressrf-static/cloud/gcp"
 )
+
+// cloudModuleByName maps the string identifiers used in
+// tests/vectors/*.json (e.g. "aws") to the CloudModule values supplied
+// by the corresponding sub-packages. Used by every test runner that
+// reads vector cases keyed by provider name. Fails the test on unknown
+// providers so vector authors can't silently add an unsupported name.
+func cloudModuleByName(t *testing.T, name string) CloudModule {
+	t.Helper()
+	switch strings.ToLower(name) {
+	case "aws":
+		return aws.Module()
+	case "azure":
+		return azure.Module()
+	case "gcp":
+		return gcp.Module()
+	}
+	t.Fatalf("unknown cloud provider %q", name)
+	return CloudModule{}
+}
 
 // policyDecisionCase mirrors the cases[] entries in policy_decisions.json.
 // The vector tests IP-level decisions only (no URLs).
@@ -28,8 +51,8 @@ func TestPolicyDecisionVectors(t *testing.T) {
 			if len(c.Allow) > 0 {
 				b.WithAllowedCIDRs(c.Allow...)
 			}
-			if len(c.CloudProviders) > 0 {
-				b.WithCloudProviders(c.CloudProviders...)
+			for _, name := range c.CloudProviders {
+				b.WithCloudModule(cloudModuleByName(t, name))
 			}
 			p, err := b.Build()
 			if err != nil {
@@ -78,14 +101,10 @@ func TestPolicyIsAllowedOrchestration(t *testing.T) {
 
 	// Policy A: cloud (IP-level only, matching WASM behavior) + URL deny.
 	// To get domain-level cloud denial as well, callers opt in via
-	// WithDeniedSuffixes(CloudDeniedSuffixesFor("aws")...).
-	awsSuffixes, err := CloudDeniedSuffixesFor("aws")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// WithDeniedSuffixes(aws.DeniedSuffixes()...).
 	pA, err := NewPolicyBuilder(PresetExternalOnly).
-		WithCloudProviders("aws").
-		WithDeniedSuffixes(awsSuffixes...).
+		WithCloudModule(aws.Module()).
+		WithDeniedSuffixes(aws.DeniedSuffixes()...).
 		WithURLDeny(URLRule{Host: "*.evil.com"}).
 		Build()
 	if err != nil {

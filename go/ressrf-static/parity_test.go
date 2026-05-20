@@ -58,8 +58,8 @@ func TestParityIPLevel(t *testing.T) {
 			if len(c.Allow) > 0 {
 				nb.WithAllowedCIDRs(c.Allow...)
 			}
-			if len(c.CloudProviders) > 0 {
-				nb.WithCloudProviders(c.CloudProviders...)
+			for _, name := range c.CloudProviders {
+				nb.WithCloudModule(cloudModuleByName(t, name))
 			}
 			np, err := nb.Build()
 			if err != nil {

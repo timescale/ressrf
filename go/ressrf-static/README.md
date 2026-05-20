@@ -26,10 +26,15 @@ re-implemented in Go.
 ## Quick start
 
 ```go
-import "github.com/timescale/ressrf/go/ressrf-static"
+import (
+    "github.com/timescale/ressrf/go/ressrf-static"
+    "github.com/timescale/ressrf/go/ressrf-static/cloud/aws" // only the providers you need
+    "github.com/timescale/ressrf/go/ressrf-static/cloud/gcp"
+)
 
 p, err := ressrfstatic.NewPolicyBuilder(ressrfstatic.PresetExternalOnly).
-    WithCloudProviders("aws", "gcp").
+    WithCloudModule(aws.Module()).
+    WithCloudModule(gcp.Module()).
     Build()
 if err != nil { /* bad CIDR / bad regex */ }
 
@@ -159,13 +164,48 @@ go test -bench=. -benchmem -run=^$ -benchtime=5s ./go/ressrf-static/...
 go test -bench=. -benchmem -run=^$ -benchtime=5s ./go/ressrf/...
 ```
 
+## Tree-shakable cloud providers
+
+Each cloud provider lives in its own sub-package so the Go linker can prune
+unused providers from the binary. The Azure dataset alone is ~3.1 MB.
+
+```
+go/ressrf-static/
+├── cloud/
+│   ├── aws/   (~440 KB)
+│   ├── azure/ (~3.1 MB)
+│   ├── gcp/   (~28 KB)
+│   └── all/   (convenience: imports all three)
+└── cloudmod/  (type definition only; no payload)
+```
+
+Import only the providers you need:
+
+```go
+import "github.com/timescale/ressrf/go/ressrf-static/cloud/aws"
+b.WithCloudModule(aws.Module())
+```
+
+Measured impact: a minimal program importing only `cloud/aws` builds to a
+6.7 MB binary; the same program with `cloud/all` is 9.9 MB. The extra 3.2 MB
+is dead Azure + GCP data the linker would otherwise have to keep.
+
+If you really want everything:
+
+```go
+import "github.com/timescale/ressrf/go/ressrf-static/cloud/all"
+b.WithCloudModules(all.Modules()...)
+```
+
 ## Caveats / non-goals
 
 - **Cloud modules add deny CIDRs only**, matching WASM ABI behavior. For
-  domain-level cloud denial, opt in via:
+  domain-level cloud denial, opt in via the provider sub-package's suffix
+  accessors:
   ```go
-  suffixes, _ := ressrfstatic.CloudDeniedSuffixesFor("aws")
-  b.WithCloudProviders("aws").WithDeniedSuffixes(suffixes...)
+  import "github.com/timescale/ressrf/go/ressrf-static/cloud/aws"
+  b.WithCloudModule(aws.Module()).
+    WithDeniedSuffixes(aws.DeniedSuffixes()...)
   ```
 - **Regex URL rules** are compiled with Go `regexp` (RE2). Same linear-time
   guarantees as the Rust `regex` crate; some Rust-specific Unicode classes may

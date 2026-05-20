@@ -19,7 +19,8 @@ func TestLoadIPRanges(t *testing.T) {
 	if got := len(r.Tiers.CSPMetadata.Entries); got == 0 {
 		t.Errorf("CSP metadata tier empty")
 	}
-	// Sanity: IMDS IP must be present somewhere in the deny tiers (csp_metadata expected).
+	// Sanity: IMDS IP must be present somewhere in the deny tiers
+	// (csp_metadata expected).
 	found := false
 	for _, e := range r.Tiers.CSPMetadata.Entries {
 		if e.CIDR == "169.254.169.254/32" {
@@ -32,12 +33,17 @@ func TestLoadIPRanges(t *testing.T) {
 	}
 }
 
-func TestLoadCloud(t *testing.T) {
+// TestParseCloudFile exercises ParseCloudFile against every supported
+// provider's embedded JSON via the sub-packages. The sub-packages
+// themselves carry the //go:embed; the main package only owns the
+// parsing logic.
+func TestParseCloudFile(t *testing.T) {
 	for _, name := range []string{"aws", "azure", "gcp"} {
 		t.Run(name, func(t *testing.T) {
-			c, err := LoadCloud(name)
+			m := cloudModuleByName(t, name)
+			c, err := ParseCloudFile(m.JSON)
 			if err != nil {
-				t.Fatalf("LoadCloud(%q): %v", name, err)
+				t.Fatalf("ParseCloudFile(%s): %v", name, err)
 			}
 			if c.Provider != name {
 				t.Errorf("provider field = %q, want %q", c.Provider, name)
@@ -52,8 +58,13 @@ func TestLoadCloud(t *testing.T) {
 	}
 }
 
-func TestLoadCloudUnknown(t *testing.T) {
-	if _, err := LoadCloud("digitalocean"); err == nil {
-		t.Errorf("expected error for unknown provider, got nil")
+// TestCloudModuleEmptyJSON guards the friendly-error path in
+// applyCloudModule for callers that construct a zero-value CloudModule.
+func TestCloudModuleEmptyJSON(t *testing.T) {
+	_, err := NewPolicyBuilder(PresetExternalOnly).
+		WithCloudModule(CloudModule{Name: "broken"}).
+		Build()
+	if err == nil {
+		t.Fatal("expected error for empty CloudModule JSON")
 	}
 }
