@@ -64,88 +64,76 @@ The public API mirrors `go/ressrf` so callers can swap imports in most cases.
 
 `Policy` is documented as safe for concurrent use and the per-check cost is
 sub-microsecond, so a long-running service should build the policy **once at
-process start** and share it across all requests. The pattern below is what
-[tiger-connect's `internal/netguard`][tc-netguard] uses to enforce SSRF on its
-connector workers (Postgres, Kafka, HTTP, SSH).
+process start** and share it across requests. The one-time setup is the only
+indirection worth having — at call sites, use the `Policy` methods directly.
 
 ```go
-package netguard
+package egress
 
 import (
-	"context"
-	"net"
 	"sync"
 
 	"github.com/timescale/ressrf/go/ressrf-static"
 	"github.com/timescale/ressrf/go/ressrf-static/cloud/aws" // only AWS — no Azure/GCP bytes in the binary
 )
 
-// ErrBlocked re-exports the sentinel so existing callers that do
-// errors.Is(err, netguard.ErrBlocked) keep working unchanged.
-var ErrBlocked = ressrfstatic.ErrBlocked
-
 var (
 	policyOnce sync.Once
 	policy     *ressrfstatic.Policy
 )
 
-// guard returns the lazily-built singleton policy. Built once (~56 µs), used
-// for the life of the process. Bundles the IANA tiers via the ExternalOnly
-// preset plus AWS metadata-endpoint denial via the aws sub-package.
-func guard() *ressrfstatic.Policy {
+// Policy returns the lazily-built process-wide SSRF policy. Built once
+// (~56 µs); the *Policy itself is safe for concurrent use after that.
+// Bundles the IANA tiers via the ExternalOnly preset plus AWS
+// metadata-endpoint denial via the aws sub-package.
+func Policy() *ressrfstatic.Policy {
 	policyOnce.Do(func() {
 		p, err := ressrfstatic.NewPolicyBuilder(ressrfstatic.PresetExternalOnly).
 			WithCloudModule(aws.Module()).
 			Build()
 		if err != nil {
-			panic("netguard: policy build: " + err.Error())
+			panic("egress: build policy: " + err.Error())
 		}
 		policy = p
 	})
 	return policy
 }
-
-// Pre-flight check (fail before pool.Begin / before issuing the HTTP request).
-func ValidateURL(rawURL string) error {
-	return guard().IsAllowed(context.Background(), rawURL)
-}
-
-// Transport-layer dialer. Plug into:
-//   - pgx.ConnConfig{DialFunc: SafeDialContext}
-//   - kafka.Dialer{DialFunc: SafeDialContext}
-//   - http.Transport{DialContext: SafeDialContext}
-//   - ssh: use guard().SSHDial directly.
-func SafeDialer() *net.Dialer { return guard().SafeDialer() }
-
-func SafeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	return guard().DialContext(ctx, network, addr)
-}
 ```
 
-Then each consumer is a one-liner:
+That's the entire wrapper. Every consumer calls the `*Policy` methods
+directly — no helper functions in between:
 
 ```go
-// HTTP — replace http.DefaultTransport.DialContext
+// Pre-flight URL check (fail before pool.Begin / before issuing the HTTP request).
+if err := egress.Policy().IsAllowed(ctx, rawURL); err != nil {
+    return err // errors.Is(err, ressrfstatic.ErrBlocked) → true
+}
+
+// HTTP — drop the SSRF-safe DialContext straight into a cloned transport.
 transport := http.DefaultTransport.(*http.Transport).Clone()
-transport.DialContext = netguard.SafeDialContext
+transport.DialContext = egress.Policy().DialContext
+
+// Or use the all-in-one client (sets transport + CheckRedirect):
+client := egress.Policy().HTTPClient(nil)
 
 // pgx
 cfg, _ := pgx.ParseConfig(connStr)
-cfg.DialFunc = netguard.SafeDialContext
+cfg.DialFunc = egress.Policy().DialContext
+
+// Kafka (segmentio)
+dialer := kafka.Dialer{DialFunc: egress.Policy().DialContext}
 
 // SSH
-sshClient, err := guard().SSHDial(ctx, "host:22", sshConfig)
+sshClient, err := egress.Policy().SSHDial(ctx, "host:22", sshConfig)
 ```
 
 Two reasons this is faster than building per-request:
 1. `Build()` is amortized to ~zero per request instead of paid 56 µs each time.
-2. The `Control` hook on `SafeDialer` is the canonical security boundary
-   (post-DNS, defeats rebinding). Existing wrappers that call `net.LookupIP`
-   themselves *before* the dial can be deleted — the dialer already does DNS
-   once, and the `Control` hook runs on whatever was resolved. Saves one
-   lookup per request.
-
-[tc-netguard]: https://github.com/timescale/tiger-connect/pull/366
+2. The `Control` hook inside `SafeDialer` / `DialContext` is the canonical
+   security boundary (post-DNS, defeats rebinding). Pre-flight `net.LookupIP`
+   wrappers that some codebases keep around are redundant — the dialer
+   already does DNS once, and the `Control` hook validates whatever was
+   resolved. Saves one lookup per request.
 
 ## Architecture
 

@@ -3,148 +3,139 @@ package ressrfstatic
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // redirectChainCase mirrors test_cases[] in redirect_chains.json.
 type redirectChainCase struct {
-	Name              string   `json:"name"`
-	Chain             []string `json:"chain"`
-	PolicyPreset      string   `json:"policy_preset"`
-	AllowCIDRs        []string `json:"allow_cidrs,omitempty"`
-	AllowPlaintextHTTP bool    `json:"allow_plaintext_http,omitempty"` // not currently consulted
-	MaxRedirects      int      `json:"max_redirects,omitempty"`
-	Expected          string   `json:"expected"` // "allowed" | "blocked"
-	BlockedAtHop      int      `json:"blocked_at_hop,omitempty"`
-	Reason            string   `json:"reason,omitempty"`
-	Note              string   `json:"note,omitempty"`
+	Name               string   `json:"name"`
+	Chain              []string `json:"chain"`
+	PolicyPreset       string   `json:"policy_preset"`
+	AllowCIDRs         []string `json:"allow_cidrs,omitempty"`
+	AllowPlaintextHTTP bool     `json:"allow_plaintext_http,omitempty"`
+	MaxRedirects       int      `json:"max_redirects,omitempty"`
+	Expected           string   `json:"expected"` // "allowed" | "blocked"
+	BlockedAtHop       int      `json:"blocked_at_hop,omitempty"`
+	Reason             string   `json:"reason,omitempty"`
+	Note               string   `json:"note,omitempty"`
 }
+
+// defaultMaxRedirects matches the limit baked into Policy.checkRedirect.
+const defaultMaxRedirects = 10
 
 func TestRedirectChainVectors(t *testing.T) {
 	var f struct {
 		TestCases []redirectChainCase `json:"test_cases"`
 	}
-	if err := json.Unmarshal(redirectChainsJSON, &f); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, json.Unmarshal(redirectChainsJSON, &f))
+
 	for _, c := range f.TestCases {
 		c := c
 		t.Run(c.Name, func(t *testing.T) {
-			preset := parsePreset(t, c.PolicyPreset)
-			b := NewPolicyBuilder(preset)
-			if len(c.AllowCIDRs) > 0 {
-				b.WithAllowedCIDRs(c.AllowCIDRs...)
-			}
-			if c.AllowPlaintextHTTP {
-				b.WithAllowPlaintextHTTP(true)
-			}
-			p, err := b.Build()
-			if err != nil {
-				t.Fatalf("build: %v", err)
-			}
-			// Walk the chain hop-by-hop and apply IsAllowed at each hop —
-			// equivalent to what checkRedirect would do during a real
-			// 3xx-followed request. Test runner is decoupled from any HTTP
-			// server so we can exercise vectors that point at literal
-			// metadata IPs which never get resolved.
+			p := buildRedirectPolicy(t, c)
+
 			// Walk the chain hop-by-hop. The runner mirrors what
-			// http.Client.CheckRedirect does: IsAllowed on the target +
-			// cross-hop checks (max redirects, HTTPS-to-HTTP downgrade).
-			ctx := context.Background()
+			// http.Client.CheckRedirect does: IsAllowed on the target plus
+			// cross-hop checks (max-redirects, HTTPS→HTTP downgrade). It is
+			// decoupled from a real HTTP server so we can exercise vectors
+			// that point at literal metadata IPs.
 			maxRedirects := c.MaxRedirects
 			if maxRedirects == 0 {
-				maxRedirects = 10
+				maxRedirects = defaultMaxRedirects
 			}
-			prevScheme := ""
-			firstScheme := ""
-			for hop, raw := range c.Chain {
-				// Capture scheme cheaply (already lowercased in parseURLComponents).
-				scheme, _, _ := parseURLComponents(raw)
-				if hop == 0 {
-					firstScheme = strings.ToLower(scheme)
-				}
+			firstScheme, _, _ := parseURLComponents(c.Chain[0])
+			firstScheme = strings.ToLower(firstScheme)
 
-				err := p.IsAllowed(ctx, raw)
-				// Cross-hop: max-redirects + downgrade.
-				if err == nil && hop > 0 {
-					if hop >= maxRedirects {
-						err = &BlockedError{Reason: ReasonURLRuleDenied, URL: raw, DetailText: "too many redirects"}
-					} else if !c.AllowPlaintextHTTP && strings.ToLower(scheme) == "http" && firstScheme == "https" {
-						err = &BlockedError{Reason: ReasonURLRuleDenied, URL: raw, DetailText: "HTTPS to HTTP downgrade during redirect"}
-					}
-				}
-				_ = prevScheme
+			ctx := context.Background()
+			for hop, raw := range c.Chain {
+				err := walkRedirectHop(ctx, p, c, hop, raw, firstScheme, maxRedirects)
 
 				if c.Expected == "blocked" && hop == c.BlockedAtHop {
-					if err == nil {
-						t.Errorf("hop %d (%s) should be blocked, but was allowed", hop, raw)
-					}
-					return
+					require.Error(t, err, "hop %d (%s) should be blocked", hop, raw)
+					return // chain stops at first block
 				}
-				if err != nil {
-					t.Errorf("hop %d (%s) unexpectedly blocked: %v", hop, raw, err)
-					return
-				}
-				prevScheme = scheme
+				require.NoError(t, err, "hop %d (%s) unexpectedly blocked", hop, raw)
 			}
-			if c.Expected == "blocked" {
-				t.Errorf("expected blocked at hop %d but full chain passed", c.BlockedAtHop)
-			}
+			require.NotEqual(t, "blocked", c.Expected, "chain passed but vector expected block at hop %d", c.BlockedAtHop)
 		})
 	}
 }
 
-// TestHTTPRoundTripBlocksPrivate covers the transport layer end-to-end.
+// buildRedirectPolicy constructs the policy described by a vector case.
+func buildRedirectPolicy(t *testing.T, c redirectChainCase) *Policy {
+	t.Helper()
+	b := NewPolicyBuilder(parsePreset(t, c.PolicyPreset))
+	if len(c.AllowCIDRs) > 0 {
+		b.WithAllowedCIDRs(c.AllowCIDRs...)
+	}
+	if c.AllowPlaintextHTTP {
+		b.WithAllowPlaintextHTTP(true)
+	}
+	p, err := b.Build()
+	require.NoError(t, err)
+	return p
+}
+
+// walkRedirectHop runs IsAllowed on one hop and applies the cross-hop
+// downgrade / max-redirect rules that http.Client.CheckRedirect normally
+// owns. Returns nil if the hop is allowed end-to-end.
+func walkRedirectHop(ctx context.Context, p *Policy, c redirectChainCase, hop int, raw, firstScheme string, maxRedirects int) error {
+	if err := p.IsAllowed(ctx, raw); err != nil {
+		return err
+	}
+	if hop == 0 {
+		return nil
+	}
+	scheme, _, _ := parseURLComponents(raw)
+	if hop >= maxRedirects {
+		return &BlockedError{Reason: ReasonURLRuleDenied, URL: raw, DetailText: "too many redirects"}
+	}
+	if !c.AllowPlaintextHTTP && strings.ToLower(scheme) == "http" && firstScheme == "https" {
+		return &BlockedError{Reason: ReasonURLRuleDenied, URL: raw, DetailText: "HTTPS to HTTP downgrade during redirect"}
+	}
+	return nil
+}
+
 func TestHTTPRoundTripBlocksPrivate(t *testing.T) {
 	// httptest.Server binds to 127.0.0.1, which ExternalOnly denies.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	p, err := NewPolicyBuilder(PresetExternalOnly).Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	c := p.HTTPClient(nil)
-	resp, err := c.Get(srv.URL)
-	if err == nil {
-		_ = resp.Body.Close()
-		t.Fatalf("expected request to be blocked, got %d", resp.StatusCode)
-	}
-	if !errors.Is(err, ErrBlocked) {
-		t.Errorf("expected errors.Is(ErrBlocked), got %v", err)
-	}
+	require.NoError(t, err)
+
+	resp, err := p.HTTPClient(nil).Get(srv.URL)
+	require.Error(t, err, "request to loopback test server should be blocked")
+	require.ErrorIs(t, err, ErrBlocked)
+	require.Nil(t, resp)
 }
 
 func TestHTTPCheckRedirectBlocksToIMDS(t *testing.T) {
-	// External server with allow-127 override so the test can talk to
-	// itself; the redirect target is the IMDS IP which is denied.
+	// External server with allow-127 override so the test can talk to itself;
+	// the redirect target is the IMDS IP, which is denied.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "http://169.254.169.254/latest/meta-data/", http.StatusFound)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	p, err := NewPolicyBuilder(PresetExternalOnly).
-		WithAllowedCIDRs("127.0.0.0/8"). // allow connecting to the test server
+		WithAllowedCIDRs("127.0.0.0/8"). // allow connecting to the test server itself
 		Build()
-	if err != nil {
-		t.Fatal(err)
+	require.NoError(t, err)
+
+	resp, err := p.HTTPClient(nil).Get(srv.URL)
+	require.Error(t, err, "redirect to IMDS should be blocked")
+	if resp != nil {
+		t.Cleanup(func() { _ = resp.Body.Close() })
 	}
-	c := p.HTTPClient(nil)
-	resp, err := c.Get(srv.URL)
-	if err == nil {
-		_ = resp.Body.Close()
-		t.Fatalf("expected redirect to be blocked")
-	}
-	if !strings.Contains(err.Error(), "ressrfstatic") {
-		t.Errorf("expected ressrfstatic error, got %v", err)
-	}
+	require.Contains(t, err.Error(), "ressrfstatic", "error should be sourced from ressrfstatic, got %v", err)
 }
 
 func TestHTTPRedirectEmitsRedirectIntercepted(t *testing.T) {
@@ -154,35 +145,27 @@ func TestHTTPRedirectEmitsRedirectIntercepted(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		// Same-origin absolute redirect.
-		http.Redirect(w, r, fmt.Sprintf("%s/next", srv.URL), http.StatusFound)
+		http.Redirect(w, r, srv.URL+"/next", http.StatusFound)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	sink := &RecordingSink{}
 	p, err := NewPolicyBuilder(PresetExternalOnly).
 		WithAllowedCIDRs("127.0.0.0/8").
 		WithAuditSink(sink).
 		Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	c := p.HTTPClient(nil)
-	resp, _ := c.Get(srv.URL)
-	if resp != nil {
-		_ = resp.Body.Close()
-	}
-	// We don't care about the final status — checking that the redirect
-	// was observed in the audit stream.
-	found := false
+	require.NoError(t, err)
+
+	resp, err := p.HTTPClient(nil).Get(srv.URL)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	var found bool
 	for _, e := range sink.Events {
 		if _, ok := e.(*RedirectIntercepted); ok {
 			found = true
 			break
 		}
 	}
-	if !found {
-		t.Errorf("no RedirectIntercepted event emitted")
-	}
+	require.True(t, found, "expected at least one RedirectIntercepted event, got %d total events", len(sink.Events))
 }
-

@@ -2,44 +2,42 @@ package ressrfstatic
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )
 
-func TestSSHDialBlocksPrivate(t *testing.T) {
-	p, err := NewPolicyBuilder(PresetExternalOnly).Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg := &ssh.ClientConfig{
-		User:            "noone",
-		Auth:            []ssh.AuthMethod{ssh.Password("nope")},
+// insecureSSHConfig returns a ClientConfig wired with InsecureIgnoreHostKey.
+// The SSH e2e tests only exercise the SSRF reject path so handshake details
+// don't matter; centralizing the config keeps each test focused on the
+// policy boundary.
+func insecureSSHConfig() *ssh.ClientConfig {
+	return &ssh.ClientConfig{
+		User:            "ressrf-static-test",
+		Auth:            []ssh.AuthMethod{ssh.Password("ignored")},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	_, err = p.SSHDial(context.Background(), "10.0.0.1:22", cfg)
-	if err == nil {
-		t.Fatal("expected SSHDial to be blocked")
-	}
-	if !errors.Is(err, ErrBlocked) {
-		t.Errorf("expected errors.Is(ErrBlocked), got %v", err)
-	}
+}
+
+func TestSSHDialBlocksPrivate(t *testing.T) {
+	p, err := NewPolicyBuilder(PresetExternalOnly).Build()
+	require.NoError(t, err)
+
+	client, err := p.SSHDial(context.Background(), "10.0.0.1:22", insecureSSHConfig())
+	require.Error(t, err, "dial to RFC1918 should be blocked")
+	require.ErrorIs(t, err, ErrBlocked)
+	require.Nil(t, client)
 }
 
 func TestSSHDialBlocksIMDS(t *testing.T) {
 	p, err := NewPolicyBuilder(PresetExternalOnly).Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg := &ssh.ClientConfig{HostKeyCallback: ssh.InsecureIgnoreHostKey()}
-	_, err = p.SSHDial(context.Background(), "169.254.169.254:22", cfg)
-	if err == nil {
-		t.Fatal("expected SSHDial to be blocked")
-	}
-	if !errors.Is(err, ErrBlocked) {
-		t.Errorf("expected errors.Is(ErrBlocked), got %v", err)
-	}
+	require.NoError(t, err)
+
+	client, err := p.SSHDial(context.Background(), "169.254.169.254:22", insecureSSHConfig())
+	require.Error(t, err, "dial to IMDS should be blocked")
+	require.ErrorIs(t, err, ErrBlocked)
+	require.Nil(t, client)
 }
 
 func TestSSHDialEmitsConnectionAttempt(t *testing.T) {
@@ -47,25 +45,20 @@ func TestSSHDialEmitsConnectionAttempt(t *testing.T) {
 	p, err := NewPolicyBuilder(PresetExternalOnly).
 		WithAuditSink(sink).
 		Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg := &ssh.ClientConfig{HostKeyCallback: ssh.InsecureIgnoreHostKey()}
+	require.NoError(t, err)
 	sink.Reset()
 
-	_, _ = p.SSHDial(context.Background(), "10.0.0.5:22", cfg)
+	_, err = p.SSHDial(context.Background(), "10.0.0.5:22", insecureSSHConfig())
+	require.Error(t, err)
 
-	found := false
+	var ce *ConnectionAttempt
 	for _, e := range sink.Events {
-		if ce, ok := e.(*ConnectionAttempt); ok && ce.Protocol == "ssh" && !ce.Allowed {
-			found = true
-			if ce.RemoteAddr != "10.0.0.5:22" {
-				t.Errorf("RemoteAddr = %q, want %q", ce.RemoteAddr, "10.0.0.5:22")
-			}
+		if got, ok := e.(*ConnectionAttempt); ok && got.Protocol == "ssh" {
+			ce = got
 			break
 		}
 	}
-	if !found {
-		t.Errorf("no blocked ConnectionAttempt(ssh) in %d events", len(sink.Events))
-	}
+	require.NotNil(t, ce, "no ConnectionAttempt(ssh) event among %d events", len(sink.Events))
+	require.False(t, ce.Allowed)
+	require.Equal(t, "10.0.0.5:22", ce.RemoteAddr)
 }
