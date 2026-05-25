@@ -48,6 +48,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "array-const-fn-init"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bcb85e548c05d407fa6faff46b750ba287714ef32afc0f5e15b4641ffd6affb"
+
+[[package]]
 name = "astral-tokio-tar"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -872,7 +878,7 @@ dependencies = [
  "ipnet",
  "jni",
  "once_cell",
- "prefix-trie",
+ "prefix-trie 0.8.4",
  "rand 0.10.1",
  "ring",
  "thiserror",
@@ -1682,10 +1688,22 @@ dependencies = [
 
 [[package]]
 name = "prefix-trie"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90f561214012d3fc240a1f9c817cc4d57f5310910d066069c1b093f766bb5966"
+checksum = "4cf6e3177f0684016a5c209b00882e15f8bdd3f3bb48f0491df10cd102d0c6e7"
 dependencies = [
+ "either",
+ "ipnet",
+ "num-traits",
+]
+
+[[package]]
+name = "prefix-trie"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "213da6195cb7a0de6d6a39ff149104be782141b670b5c0f81111245eab51d81d"
+dependencies = [
+ "array-const-fn-init",
  "either",
  "ipnet",
  "num-traits",
@@ -1992,7 +2010,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "ipnet",
- "prefix-trie",
+ "prefix-trie 0.9.0",
  "regex",
  "serde",
  "serde_json",
