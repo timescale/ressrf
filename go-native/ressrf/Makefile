@@ -16,12 +16,10 @@ FUZZ_TARGET   ?= FuzzValidateURL
 FUZZ_DURATION ?= 30s
 FUZZ_PKG      ?= ./internal/engine/
 
-# Differential-fuzz-against-Rust overrides. Upstream Rust repo location and
-# the WASM target. The .wasm artifact is not committed; it is rebuilt on
-# every `make fuzz-rust` run from the upstream HEAD.
-RESSRF_RUST_REPO          ?= https://github.com/timescale/ressrf
-RESSRF_RUST_DIR           ?= /tmp/ressrf
-RESSRF_WASM_TARGET        ?= wasm32-wasip1
+# Differential-fuzz duration. The oracle WASM is the sibling wazero
+# binding's checked-in artifact at ../../go/ressrf/core.wasm, picked
+# up automatically by internal/diff/oracle.go — no clone, no cargo
+# step from this Makefile.
 FUZZ_RUST_DURATION ?= 5m
 
 .DEFAULT_GOAL := help
@@ -67,44 +65,12 @@ check-generated: generate ## Fail if generated files are stale (used by CI drift
 fuzz: ## Run a single fuzz target (override FUZZ_TARGET, FUZZ_DURATION)
 	$(GO) test -run='^$$' -fuzz='^$(FUZZ_TARGET)$$' -fuzztime=$(FUZZ_DURATION) $(FUZZ_PKG)
 
-# _oracle (underscore-prefixed, no help docstring -> hidden from `make help`)
-# always refreshes the upstream clone and rebuilds the WASM. ~2-3s when
-# nothing changed, ~10-30s when upstream advances. Both fuzz-rust
-# targets depend on it so a stale oracle can never silently coexist with
-# the harness.
-#
-# Three states the directory can be in when this target runs:
-#   1. doesn't exist           -> needs fresh clone
-#   2. exists with .git/       -> already cloned, pull --ff-only
-#   3. exists without .git/    -> populated by actions/cache restoring
-#                                 RESSRF_RUST_DIR/target/, but missing
-#                                 the repo itself
-# State 3 used to fail because `git clone` refuses a non-empty destination.
-# Clone into a tempdir and move only .git/ into place so the cache-restored
-# target/ (gitignored upstream) survives.
-.PHONY: _oracle
-_oracle:
-	@if [ -d $(RESSRF_RUST_DIR)/.git ]; then \
-	  git -C $(RESSRF_RUST_DIR) pull --ff-only; \
-	else \
-	  tmpclone=$$(mktemp -d); \
-	  trap "rm -rf $$tmpclone" EXIT; \
-	  git clone --depth 1 $(RESSRF_RUST_REPO) $$tmpclone/oracle && \
-	  mkdir -p $(RESSRF_RUST_DIR) && \
-	  rm -rf $(RESSRF_RUST_DIR)/.git && \
-	  mv $$tmpclone/oracle/.git $(RESSRF_RUST_DIR)/.git && \
-	  git -C $(RESSRF_RUST_DIR) checkout -- .; \
-	fi
-	cd $(RESSRF_RUST_DIR) && cargo build -p ressrf-wasm --target $(RESSRF_WASM_TARGET) --release
-	mkdir -p internal/diff/testdata
-	cp $(RESSRF_RUST_DIR)/target/$(RESSRF_WASM_TARGET)/release/ressrf_wasm.wasm internal/diff/testdata/
-
 .PHONY: fuzz-rust
-fuzz-rust: _oracle ## Fuzz this Go engine against the upstream Rust WASM oracle (auto-refreshes oracle)
+fuzz-rust: ## Fuzz this Go engine against the sibling wazero binding's WASM oracle
 	$(GO) test -tags diffuzz -run='^$$' -fuzz='^FuzzPolicyDiff$$' -fuzztime=$(FUZZ_RUST_DURATION) ./internal/diff/
 
 .PHONY: fuzz-rust-regress
-fuzz-rust-regress: _oracle ## Deterministic replay of the persisted divergence corpus (used by CI)
+fuzz-rust-regress: ## Deterministic replay of the persisted divergence corpus (used by CI)
 	$(GO) test -tags diffuzz -run='^FuzzPolicyDiff$$' ./internal/diff/
 
 .PHONY: bench

@@ -1,19 +1,14 @@
 //go:build diffuzz
 
-// Package diff hosts the differential-fuzz harness that compares the native
-// Go engine in this repo against the upstream Rust ressrf-core core compiled
-// to WASM. It only builds under the `diffuzz` build tag so that wazero and
-// the .wasm artifact are not required for normal `go test` runs.
+// Package diff hosts the differential-fuzz harness that compares the
+// native Go engine against the Rust ressrf-core compiled to WASM. It
+// only builds under the `diffuzz` build tag so that wazero and the
+// .wasm artifact are not required for normal `go test` runs.
 //
-// The .wasm is loaded from RESSRF_WASM_PATH (default: testdata/ressrf_wasm.wasm
-// relative to this package). Build it from the upstream repo with:
-//
-//	make diffuzz-build-wasm
-//
-// or, manually:
-//
-//	cargo build -p ressrf-wasm --target wasm32-wasip1 --release
-//	cp target/wasm32-wasip1/release/ressrf_wasm.wasm internal/diff/testdata/
+// The oracle WASM is the sibling wazero binding's checked-in artifact
+// at <repo-root>/go/ressrf/core.wasm. The default resolves to that
+// file via runtime.Caller so the harness is CWD-independent;
+// override with RESSRF_WASM_PATH if a custom build is needed.
 package diff
 
 import (
@@ -22,11 +17,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
-	"os"
-	"path/filepath"
 )
 
 const handleInvalid uint32 = 0xFFFFFFFF
@@ -194,5 +191,11 @@ func wasmPath() string {
 	if p := os.Getenv("RESSRF_WASM_PATH"); p != "" {
 		return p
 	}
-	return filepath.Join("testdata", "ressrf_wasm.wasm")
+	// here = <repo-root>/go-native/ressrf/internal/diff/oracle.go; the
+	// sibling wazero binding lives at <repo-root>/go/ressrf/core.wasm.
+	_, here, _, ok := runtime.Caller(0)
+	if !ok {
+		return filepath.Join("..", "..", "..", "..", "go", "ressrf", "core.wasm")
+	}
+	return filepath.Join(filepath.Dir(here), "..", "..", "..", "..", "go", "ressrf", "core.wasm")
 }

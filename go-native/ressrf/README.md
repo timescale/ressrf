@@ -58,19 +58,19 @@ Production code cannot flip the bypass: the setter is gated on `testing.TB`.
 
 ## Differential fuzz vs the Rust oracle
 
-`internal/diff/` hosts a differential-fuzz harness that compares this Go
-engine against the upstream Rust `ressrf-core` compiled to WASM. Gated
+`internal/diff/` hosts a differential-fuzz harness that compares this
+native Go engine against the Rust `ressrf-core` compiled to WASM. Gated
 behind the `diffuzz` build tag so wazero and the `.wasm` artifact stay
 out of the default build path.
 
 ```bash
-make fuzz-rust          # one command: refreshes the oracle, then fuzzes for 5m
+make fuzz-rust          # fuzzes for 5m (override with FUZZ_RUST_DURATION=30s)
 ```
 
-The first invocation clones upstream into `/tmp/ressrf` and compiles the
-WASM (~30s). Subsequent invocations `git pull --ff-only` and let cargo's
-incremental check skip if nothing changed (~2-3s overhead). Override the
-duration with `FUZZ_RUST_DURATION=30s`.
+The oracle WASM is the sibling [wazero binding's](../../go/ressrf/)
+checked-in `core.wasm` — same artifact `wazero` loads in production,
+post-processed by `wasm-opt -Oz` + `wasm-tools strip`. No clone, no
+cargo step; the harness picks the file up via `runtime.Caller`.
 
 The harness compares the boolean allow/block decision under
 `PresetExternalOnly`. Reason taxonomy is not compared because
