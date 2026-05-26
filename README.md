@@ -29,6 +29,7 @@ ressrf (pronounced "resurf") validates network destinations against configurable
 | [`ressrf-tracing`](crates/ressrf-tracing/) | Rust | TracingSink audit adapter | [README](crates/ressrf-tracing/README.md) |
 | [`ressrf-wasm`](crates/ressrf-wasm/) | Rust | WASM ABI for Go/Node.js | [README](crates/ressrf-wasm/README.md) |
 | [`go/ressrf`](go/ressrf/) | Go | wazero WASM runtime | [README](go/ressrf/README.md) |
+| [`go-native/ressrf`](go-native/ressrf/) | Go | Native port (no WASM, no CGO) | [README](go-native/ressrf/README.md) |
 | [`python/`](python/) | Python | PyO3 native extension | [README](python/README.md) |
 | [`node/`](node/) | TypeScript | WebAssembly API | [README](node/README.md) |
 
@@ -56,6 +57,15 @@ ressrf (pronounced "resurf") validates network destinations against configurable
 └─────────┘ └──────────┘      └──────────────┘
 ```
 
+Go additionally ships a native port at [`go-native/ressrf/`](go-native/ressrf/)
+that reimplements the engine in pure Go (`net/netip` + `regexp`). It
+consumes the same `tests/vectors/` conformance contract and stays in
+lockstep with `ressrf-core` via a differential-fuzz harness that
+compares every random URL against the WASM oracle. No WASM runtime,
+no embedded `.wasm`, no Rust toolchain in the build pipeline — useful
+for Go shops that prefer native debuggability (`pprof`, `delve`) and
+contribution flow (no Rust toolchain in PRs).
+
 ## Quick Start
 
 ### Rust
@@ -69,13 +79,24 @@ assert!(policy.is_network_allowed(&["10.0.0.1".parse().unwrap()]).is_err());
 assert!(policy.is_network_allowed(&["93.184.216.34".parse().unwrap()]).is_ok());
 ```
 
-### Go
+### Go (wazero, shared Rust engine)
 
 ```go
 policy, _ := ressrf.NewPolicyBuilder(ressrf.PresetExternalOnly).
     WithCloudProviders("aws", "azure", "gcp").
     Build(ctx)
 defer policy.Close(ctx)
+
+err := policy.IsAllowed(ctx, "http://169.254.169.254/latest/meta-data/")
+// err: blocked
+```
+
+### Go (native)
+
+```go
+policy, _ := ressrf.NewPolicy(ressrf.PresetExternalOnly,
+    ressrf.WithCloudProviderDenies(ressrf.CloudAWS, ressrf.CloudAzure, ressrf.CloudGCP),
+)
 
 err := policy.IsAllowed(ctx, "http://169.254.169.254/latest/meta-data/")
 // err: blocked
@@ -113,7 +134,8 @@ try {
 | Language | Command | Requirements |
 |----------|---------|--------------|
 | Rust | `cargo add ressrf-core` | Rust 1.75+ |
-| Go | `go get github.com/timescale/ressrf/go/ressrf` | Go 1.26+ |
+| Go (wazero) | `go get github.com/timescale/ressrf/go/ressrf` | Go 1.26+ |
+| Go (native) | `go get github.com/timescale/ressrf/go-native/ressrf` | Go 1.25+ |
 | Python | `pip install ressrf` | Python 3.10+ |
 | Node.js | `npm install ressrf` | Node.js 20+ |
 
@@ -129,8 +151,13 @@ PolicyBuilder::external_only().add_allowed(&["10.42.0.0/16"]).build();
 ```
 
 ```go
-// Go
+// Go (wazero)
 NewPolicyBuilder(PresetExternalOnly).WithAllowedCIDRs("10.42.0.0/16").Build(ctx)
+```
+
+```go
+// Go (native)
+ressrf.NewPolicy(ressrf.PresetExternalOnly, ressrf.WithAllowedCIDRs("10.42.0.0/16"))
 ```
 
 ```python
@@ -156,11 +183,19 @@ PolicyBuilder::external_only()
 ```
 
 ```go
-// Go
+// Go (wazero)
 NewPolicyBuilder(PresetExternalOnly).
     WithURLAllow(URLRule{Scheme: "https", Host: "*.stripe.com", Path: "/v1/**"}).
     WithURLDeny(URLRule{Host: "*.internal"}).
     Build(ctx)
+```
+
+```go
+// Go (native)
+ressrf.NewPolicy(ressrf.PresetExternalOnly,
+    ressrf.WithURLAllow(ressrf.URLRuleGlob("https", "*.stripe.com", "/v1/**")),
+    ressrf.WithURLDeny(ressrf.URLRuleGlob("", "*.internal", "")),
+)
 ```
 
 ```python
@@ -224,10 +259,11 @@ python scripts/generate_ip_ranges.py --validate-only
 Shared test vectors in `tests/vectors/` ensure identical behavior across all languages, including a 92-case `ssrf_techniques.json` covering the full SSRF bypass technique taxonomy (IP representation tricks, IPv6 variants, parser confusion, protocol smuggling, cloud metadata, Unicode/IDN, and more):
 
 ```bash
-cargo test --workspace --all-features     # Rust
-cd go/ressrf && go test -race ./...       # Go
-cd python && uv run pytest tests/ -v      # Python
-cd node && npx tsx --test tests/*.test.ts # Node.js
+cargo test --workspace --all-features          # Rust
+cd go/ressrf && go test -race ./...            # Go (wazero)
+cd go-native/ressrf && go test -race ./...     # Go (native)
+cd python && uv run pytest tests/ -v           # Python
+cd node && npx tsx --test tests/*.test.ts      # Node.js
 ```
 
 A Tier 2 end-to-end suite under `crates/ressrf-tcp/tests/ssrf_e2e.rs` exercises DNS-rebinding pinning and redirect chains through the full network stack using CoreDNS and WireMock containers (`tests/containers/`). It is gated behind the `e2e` Cargo feature and requires Docker; tests skip with a notice when Docker is unavailable:
@@ -239,7 +275,7 @@ cargo test --features e2e -p ressrf-tcp --test ssrf_e2e
 ## CI/CD
 
 - **Rust:** check, fmt, clippy, test (Linux/macOS/Windows), WASM build
-- **Go:** test (multi-OS, race detector), vet, golangci-lint
+- **Go (wazero + native):** test (multi-OS, race detector), vet, golangci-lint; the native port additionally runs a differential-fuzz job against the wazero binding's WASM oracle
 - **Python:** pytest (multi-OS), ruff, ty
 - **Node.js:** node:test (multi-OS), tsc
 - **SSRF e2e:** Linux-only Tier 2 job spins up CoreDNS + WireMock to verify DNS-based and redirect-based bypasses end-to-end

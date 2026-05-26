@@ -20,7 +20,7 @@ ressrf's Rust core only requires the Rust compiler. The full multi-language work
 | `wasm32-wasip1` target | via `rustup target add` | WASM module rebuild |
 | `wasm-tools` | latest | Stripping debug sections from WASM binary |
 | `wasm-opt` | latest (optional) | Size-optimizing WASM binary (`-Oz`) |
-| Go | 1.26+ | Go package |
+| Go | 1.25+ (native port) / 1.26+ (wazero binding) | Both Go packages |
 | Python | 3.10+ | Python bindings |
 | `uv` | latest | Python environment management |
 | `maturin` | latest | Building the PyO3 native extension |
@@ -51,8 +51,13 @@ The script compiles `ressrf-wasm` for `wasm32-wasip1`, runs `wasm-opt -Oz` if av
 
 ### Go
 
+The workspace ships two Go modules side by side. The wazero binding
+loads the shared `core.wasm` at startup; the native port has no
+runtime dependency on Rust or WASM.
+
 ```bash
-cd go/ressrf && go build ./...
+cd go/ressrf && go build ./...           # wazero binding
+cd go-native/ressrf && go build ./...    # native port
 ```
 
 ### Python
@@ -79,8 +84,11 @@ CI enforces formatting and linting in all languages. Run them locally before pus
 cargo fmt --all
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-# Go
+# Go (wazero)
 cd go/ressrf && golangci-lint run ./...
+
+# Go (native)
+cd go-native/ressrf && golangci-lint run ./...
 
 # Python
 cd python
@@ -100,8 +108,15 @@ cd node && npx tsc --noEmit
 # Rust (all crates, all features)
 cargo test --workspace --all-features
 
-# Go (with race detector)
+# Go (with race detector) — wazero binding
 cd go/ressrf && go test -race ./...
+
+# Go (with race detector) — native port
+cd go-native/ressrf && go test -race ./...
+
+# Differential fuzz: native port vs the wazero binding's WASM oracle
+cd go-native/ressrf && make fuzz-rust-regress              # deterministic replay (CI)
+cd go-native/ressrf && FUZZ_RUST_DURATION=30s make fuzz-rust  # live fuzz
 
 # Python
 cd python && uv run pytest tests/ -v
@@ -179,7 +194,8 @@ cargo bench -p ressrf-core
 ### Go
 
 ```bash
-cd go/ressrf && go test -bench=. -benchmem
+cd go/ressrf && go test -bench=. -benchmem           # wazero binding
+cd go-native/ressrf && go test -bench=. -benchmem    # native port
 ```
 
 Results are documented in [benchmark.md](benchmark.md).
@@ -251,7 +267,8 @@ In `crates/ressrf-wasm/src/lib.rs`, add a match arm in the `cloud_providers` loo
 
 ### Step 6: Wire through language bindings
 
-- **Go** (`go/ressrf/policy.go`): the cloud string is passed through JSON to WASM, so Go needs no code change unless you want to add validation or constants.
+- **Go (wazero)** (`go/ressrf/policy.go`): the cloud string is passed through JSON to WASM, so the wazero binding needs no code change unless you want to add validation or constants.
+- **Go (native)** (`go-native/ressrf/policy.go`): add a `Cloud<Provider>` constant. The native port also needs the IP ranges baked into `go-native/ressrf/internal/engine/`; run `cd go-native/ressrf && go generate ./...` to regenerate from `crates/ressrf-core/config/`.
 - **Python** (`python/src/lib.rs`): add a match arm in `CorePolicyBuilder::with_cloud` for the new provider string.
 - **Node.js** (`node/src/policy.ts`): cloud strings pass through JSON to WASM, so Node.js needs no code change unless you want to add validation or type narrowing.
 
@@ -286,11 +303,13 @@ The WASM ABI is documented in [crates/ressrf-wasm/README.md](crates/ressrf-wasm/
 - Go: [go/ressrf/wasm.go](go/ressrf/wasm.go) (wazero, `//go:embed core.wasm`)
 - Node.js: [node/src/wasm.ts](node/src/wasm.ts) (Node.js WebAssembly API with WASI stubs)
 
-### Native bindings (Python via PyO3)
+### Native bindings (Python via PyO3, Go via native port)
 
-Native bindings link `ressrf-core` directly, avoiding the WASM layer. This gives full access to Rust types but requires a per-platform build step.
+Native bindings either link `ressrf-core` directly (Python) or reimplement the engine in the host language against the shared JSON conformance vectors (Go). Both avoid the WASM layer and trade build complexity for native debuggability.
 
-**Reference implementation:** [python/src/lib.rs](python/src/lib.rs) (PyO3/maturin)
+**Reference implementations:**
+- Python: [python/src/lib.rs](python/src/lib.rs) (PyO3/maturin, links `ressrf-core`)
+- Go: [go-native/ressrf/](go-native/ressrf/) (reimplementation against `tests/vectors/`, pinned by differential fuzz vs `ressrf-wasm`)
 
 ### Checklist for any new binding
 
@@ -430,7 +449,7 @@ Each vector file in `tests/vectors/` is a JSON array of test case objects. Every
 
 1. Create `tests/vectors/<name>.json` with the array-of-cases structure
 2. Add a Rust integration test in `crates/ressrf-core/tests/` that loads and runs the vectors
-3. Add a Go test in `go/ressrf/` that loads the same file
+3. Add a Go test in `go/ressrf/` and `go-native/ressrf/` (or `go-native/ressrf/internal/engine/`) that loads the same file via the testvectors helper
 4. Add a Python test in `python/tests/` (use the existing `conftest.py` fixture pattern for vector loading)
 5. Add a Node.js test in `node/tests/` following the existing `*.test.ts` pattern
 

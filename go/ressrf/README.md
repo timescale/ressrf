@@ -1,6 +1,8 @@
-# ressrf (Go)
+# ressrf (Go, wazero binding)
 
 Go package for SSRF prevention, powered by the `ressrf-core` engine running in a WASM sandbox via [wazero](https://wazero.io). Zero CGO, zero network dependencies at runtime. The WASM binary is embedded via `//go:embed`.
+
+> Looking for a pure-Go option? The workspace also ships a [native Go port](../../go-native/ressrf/) (`github.com/timescale/ressrf/go-native/ressrf`) that reimplements the engine without WASM. Both bindings share the same `tests/vectors/` conformance contract; pick this one for guaranteed parity with the Rust core, pick the native port for native debuggability and zero WASM-runtime weight.
 
 ## Installation
 
