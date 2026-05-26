@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How ressrf-go works</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --text: #1c1917;
+    --muted: #57534e;
+    --border: #e7e5e4;
+    --accent: #2563eb;
+    --accent-tint: #eff6ff;
+    --block: #dc2626;
+    --block-tint: #fef2f2;
+    --allow: #059669;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --code-comment: #94a3b8;
+    --code-keyword: #c4b5fd;
+    --code-string: #fda4af;
+    --code-fn: #fbbf24;
+    --mono: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    font-size: 16px;
+  }
+
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header.hero {
+    margin-bottom: 56px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header.hero h1 {
+    font-size: 36px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+
+  header.hero p.sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 18px;
+  }
+
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  .step h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .step .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .step.block-step .num {
+    background: var(--block-tint);
+    color: var(--block);
+  }
+
+  .step .label {
+    display: inline-block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .step p {
+    margin: 8px 0;
+    color: var(--muted);
+  }
+
+  .step p.lead {
+    color: var(--text);
+    margin-top: 0;
+  }
+
+  .step strong { color: var(--text); }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 0;
+    margin-bottom: 16px;
+  }
+
+  .arrow::before, .arrow::after {
+    content: "";
+    flex: 0 1 60px;
+    height: 1px;
+    background: var(--border);
+  }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 16px 18px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 12px 0 4px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+
+  code { font-family: var(--mono); }
+  p code, li code {
+    background: #f5f5f4;
+    color: var(--text);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    border: 1px solid var(--border);
+  }
+
+  .c-comment { color: var(--code-comment); font-style: italic; }
+  .c-keyword { color: var(--code-keyword); }
+  .c-string  { color: var(--code-string); }
+  .c-fn      { color: var(--code-fn); }
+  .c-hi      { background: rgba(220, 38, 38, 0.18); padding: 0 2px; border-radius: 2px; }
+
+  .callout {
+    background: var(--accent-tint);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0 4px;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .callout.block {
+    background: var(--block-tint);
+    border-left-color: var(--block);
+  }
+
+  .pipeline {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .pipeline .box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 8px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .pipeline .arr {
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    main { padding: 32px 16px 64px; }
+    header.hero h1 { font-size: 28px; }
+    .pipeline { grid-template-columns: 1fr; }
+    .pipeline .arr { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header class="hero">
+  <h1>How ressrf-go works</h1>
+  <p class="sub">From a JSON spec to a blocked SSRF attempt, end to end.</p>
+</header>
+
+<!-- Step 1: source of truth -->
+<section class="step">
+  <span class="label">Source of truth</span>
+  <h2><span class="num">1</span>The spec lives in JSON</h2>
+  <p class="lead">The deny-by-default ranges that protect every consumer of this library come from a small set of JSON files vendored from <code>timescale/ressrf</code>. They are the cross-language contract: the Rust core, the Go binding, and this native Go port all consume the same bytes.</p>
+  <pre><code><span class="c-comment">// config/ip_ranges.json (excerpt)</span>
+{
+  <span class="c-string">"iana_ipv4_deny"</span>: [
+    <span class="c-string">"0.0.0.0/8"</span>,        <span class="c-comment">// This network (RFC791)</span>
+    <span class="c-string">"10.0.0.0/8"</span>,       <span class="c-comment">// Private-Use (RFC1918)</span>
+    <span class="c-string">"127.0.0.0/8"</span>,      <span class="c-comment">// Loopback (RFC1122)</span>
+    <span class="c-hi"><span class="c-string">"169.254.0.0/16"</span></span>,    <span class="c-comment">// Link-local (RFC3927); covers AWS IMDS</span>
+    <span class="c-string">"192.168.0.0/16"</span>,   <span class="c-comment">// Private-Use (RFC1918)</span>
+    <span class="c-string">"...etc"</span>
+  ]
+}</code></pre>
+  <div class="callout">The four <code>config/*.json</code> files plus the eight conformance vectors are the only data this port shares with upstream. Refreshed monthly by a CI workflow with a per-PR drift check.</div>
+</section>
+
+<div class="arrow">build time · <code>go generate ./...</code></div>
+
+<!-- Step 2: codegen -->
+<section class="step">
+  <span class="label">Build-time codegen</span>
+  <h2><span class="num">2</span>JSON becomes Go source</h2>
+  <p class="lead">The <code>internal/cmd/gen-data</code> tool reads <code>config/*.json</code> and emits two Go files into <code>internal/engine/</code>. It validates every CIDR through <code>engine.ParseCIDR</code> at build time (rejecting octal, hex, zone-ID, and other ambiguous forms), then emits <code>mustParseCIDR</code> calls so the runtime values are pre-parsed at package init.</p>
+  <pre><code><span class="c-comment">// internal/engine/ip_ranges_generated.go - DO NOT EDIT</span>
+<span class="c-keyword">package</span> engine
+
+<span class="c-keyword">var</span> ianaIPv4Deny = [...]CIDR{
+    <span class="c-fn">mustParseCIDR</span>(<span class="c-string">"0.0.0.0/8"</span>, TierIana),
+    <span class="c-fn">mustParseCIDR</span>(<span class="c-string">"10.0.0.0/8"</span>, TierIana),
+    <span class="c-fn">mustParseCIDR</span>(<span class="c-string">"127.0.0.0/8"</span>, TierIana),
+    <span class="c-hi"><span class="c-fn">mustParseCIDR</span>(<span class="c-string">"169.254.0.0/16"</span>, TierIana)</span>,
+    <span class="c-fn">mustParseCIDR</span>(<span class="c-string">"192.168.0.0/16"</span>, TierIana),
+    <span class="c-comment">// ... ~30 more entries ...</span>
+}</code></pre>
+  <div class="pipeline">
+    <div class="box">config/<br>ip_ranges.json</div>
+    <div class="arr">→</div>
+    <div class="box">gen-data<br><span style="color:var(--muted)">validates</span></div>
+    <div class="arr">→</div>
+    <div class="box">ianaIPv4Deny<br><span style="color:var(--muted)">[]CIDR</span></div>
+  </div>
+</section>
+
+<div class="arrow">package init (runs once before main)</div>
+
+<!-- Step 3: CIDR struct -->
+<section class="step">
+  <span class="label">The CIDR value</span>
+  <h2><span class="num">3</span>What a CIDR carries</h2>
+  <p class="lead">Each <code>mustParseCIDR</code> call materialises one <code>CIDR</code> struct with the prefix in canonical (masked) form, the original string for audit output, and a <code>DataTier</code> tag identifying which list the entry came from. The whole array is built before <code>main()</code> runs.</p>
+  <pre><code><span class="c-keyword">type</span> CIDR <span class="c-keyword">struct</span> {
+    Prefix   netip.Prefix  <span class="c-comment">// canonical, masked, zero-alloc Contains()</span>
+    Original <span class="c-keyword">string</span>        <span class="c-comment">// "169.254.0.0/16"; preserved for audit</span>
+    Source   DataTier      <span class="c-comment">// TierIana / TierUserDeny / TierCspMetadata</span>
+}</code></pre>
+  <p>When <code>NewPolicy(PresetExternalOnly)</code> runs, it copies the pre-built array into <code>policy.denySet.Ranges</code>. The slice is scanned linearly on every check; for ~30 entries that beats a tree structure on cache locality.</p>
+</section>
+
+<div class="arrow">caller-facing API</div>
+
+<!-- Step 4: NewPolicy -->
+<section class="step">
+  <span class="label">Caller code</span>
+  <h2><span class="num">4</span>Create a policy</h2>
+  <p class="lead">The user composes a <code>Policy</code> with functional options. The preset seeds the deny set with the IANA + cloud-metadata ranges from steps 1–3; options layer per-app rules on top.</p>
+  <pre><code><span class="c-keyword">import</span> (
+    <span class="c-string">"github.com/timescale/ressrf/go-native/ressrf"</span>
+    <span class="c-string">"github.com/timescale/ressrf/go-native/ressrf/httpx"</span>
+)
+
+policy, err := ressrf.<span class="c-fn">NewPolicy</span>(ressrf.PresetExternalOnly,
+    ressrf.<span class="c-fn">WithCloudProviders</span>(ressrf.CloudAWS, ressrf.CloudAzure, ressrf.CloudGCP),
+    ressrf.<span class="c-fn">WithAllowedCIDRs</span>(<span class="c-string">"10.42.0.0/16"</span>),
+)</code></pre>
+  <p>After this call, the <code>*Policy</code> holds an immutable, concurrency-safe view of every CIDR you must not connect to.</p>
+</section>
+
+<div class="arrow">wrapping the HTTP stack</div>
+
+<!-- Step 5: client -->
+<section class="step">
+  <span class="label">Wrapping http.Client</span>
+  <h2><span class="num">5</span>Create a protected HTTP client</h2>
+  <p class="lead"><code>httpx.Client</code> returns an <code>*http.Client</code> that wires the policy into <em>three</em> checkpoints. Skipping any one of them is the bug attackers exploit.</p>
+  <pre><code>client := httpx.<span class="c-fn">Client</span>(policy)</code></pre>
+  <p>What that single line installs:</p>
+  <ul>
+    <li><strong>RoundTrip hook</strong>: runs <code>policy.IsAllowed(url)</code> before any bytes leave the process. Catches obviously-bad URLs (bare internal IPs, encoded-IP tricks, cloud-metadata FQDNs).</li>
+    <li><strong>Dialer Control hook</strong>: runs <code>policy.IsNetworkAllowed(ip)</code> after DNS resolves but before <code>connect()</code>. Catches "<code>evil.com</code> resolved to <code>10.0.0.5</code>", where the URL string was fine but the resolved IP wasn't.</li>
+    <li><strong>CheckRedirect</strong>: re-runs both checks on every 3xx hop. Catches <code>http://public/start</code> → <code>302 Location: http://10.0.0.5/admin</code>.</li>
+  </ul>
+</section>
+
+<div class="arrow">a request fires</div>
+
+<!-- Step 6: spoofy request -->
+<section class="step">
+  <span class="label">Adversarial request</span>
+  <h2><span class="num">6</span>A spoofy URL hits the client</h2>
+  <p class="lead">Caller code asks for the AWS instance-metadata endpoint, the classic SSRF payload that returns IAM role credentials on an unprotected EC2 host.</p>
+  <pre><code>resp, err := client.<span class="c-fn">Get</span>(<span class="c-string">"http://169.254.169.254/latest/meta-data/iam/security-credentials/"</span>)</code></pre>
+  <p>The request never reaches the network. Inside the wrapped transport:</p>
+  <pre><code><span class="c-comment">// internal/engine/uri_validator.go (simplified)</span>
+<span class="c-keyword">func</span> (v *URIValidator) <span class="c-fn">validateURL</span>(rawURL <span class="c-keyword">string</span>, p *Policy) DenyReason {
+    parts, _ := <span class="c-fn">parseURLParts</span>(rawURL)            <span class="c-comment">// scheme + host + port</span>
+    <span class="c-keyword">if</span> <span class="c-fn">IsAmbiguousIP</span>(parts.host) { ... }       <span class="c-comment">// BS-1: octal/hex/decimal; not this case</span>
+    <span class="c-keyword">if</span> <span class="c-fn">IsIPLiteral</span>(parts.host) {                <span class="c-comment">// 169.254.169.254 IS a bare IP literal</span>
+        ip, _ := <span class="c-fn">parseHostAsIP</span>(parts.host)
+        <span class="c-keyword">if</span> reason := p.<span class="c-fn">isNetworkAllowedIPs</span>([]netip.Addr{ip}); reason != <span class="c-keyword">nil</span> {
+            <span class="c-comment">// scan denySet → matches 169.254.0.0/16 from ip_ranges.json</span>
+            <span class="c-keyword">return</span> &<span class="c-fn">BareIPDeniedBeforeScheme</span>{Host: ip.<span class="c-fn">String</span>()}
+        }
+    }
+    ...
+}</code></pre>
+</section>
+
+<!-- Step 7: the error -->
+<section class="step block-step">
+  <span class="label">Result</span>
+  <h2><span class="num">7</span>The error the caller gets back</h2>
+  <p class="lead">The block surfaces as an <code>error</code> the caller can inspect structurally. No connection was opened; no DNS lookup hit the wire; no metadata token was leaked.</p>
+  <pre><code>resp, err := client.<span class="c-fn">Get</span>(<span class="c-string">"http://169.254.169.254/latest/meta-data/iam/security-credentials/"</span>)
+<span class="c-keyword">if</span> err != <span class="c-keyword">nil</span> {
+    <span class="c-keyword">var</span> be *ressrf.BlockedError
+    <span class="c-keyword">if</span> errors.<span class="c-fn">As</span>(err, &be) {
+        <span class="c-keyword">switch</span> r := be.Reason.(<span class="c-keyword">type</span>) {
+        <span class="c-keyword">case</span> *ressrf.BareIPDeniedBeforeScheme:
+            <span class="c-comment">// r.Host == "169.254.169.254"</span>
+            <span class="c-fn">log</span>.Warn(<span class="c-string">"blocked SSRF attempt"</span>, <span class="c-string">"host"</span>, r.Host)
+        <span class="c-keyword">case</span> *ressrf.InDenyCIDR:
+            <span class="c-fn">log</span>.Warn(<span class="c-string">"blocked CIDR"</span>, <span class="c-string">"cidr"</span>, r.CIDR, <span class="c-string">"source"</span>, r.Source)
+        }
+    }
+}</code></pre>
+  <div class="callout block">
+    <strong>err</strong> is an <code>*ressrf.BlockedError</code> whose <code>Reason</code> is <code>*BareIPDeniedBeforeScheme{Host: "169.254.169.254"}</code>. <code>errors.Is(err, ressrf.ErrBlocked)</code> returns true for callers who only care that <em>something</em> was blocked. The audit sink (if attached) also receives a <code>url_validated</code> event with <code>allowed=false</code> and <code>deny_kind="bare_ip_denied_before_scheme"</code>.
+  </div>
+</section>
+
+<!-- Closing pipeline -->
+<section class="step" style="background:var(--bg); border-style:dashed;">
+  <span class="label">The whole pipeline at a glance</span>
+  <h2>End to end</h2>
+  <p style="margin-top:8px;">
+    <code>config/ip_ranges.json</code> →
+    <code>gen-data</code> (validates) →
+    <code>ianaIPv4Deny []CIDR</code> (pre-parsed at init) →
+    <code>policy.denySet</code> →
+    <code>policy.IsAllowed(url)</code> →
+    <code>BareIPDeniedBeforeScheme</code> →
+    <code>*BlockedError</code>
+  </p>
+  <p style="margin-bottom:0;">The same JSON drives every other binding, so all of them refuse the same attack.</p>
+</section>
+
+<footer>
+  Companion to the <code>ressrf-go</code> README. See <code>example_test.go</code> for runnable Go examples and <code>internal/diff/</code> for the differential-fuzz harness that keeps this port in sync with the Rust core.
+</footer>
+
+</main>
+</body>
+</html>

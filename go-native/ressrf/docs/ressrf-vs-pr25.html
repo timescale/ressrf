@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ressrf-go vs ressrf PR #25 — comparison</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --text: #1c1917;
+    --muted: #57534e;
+    --border: #e7e5e4;
+    --accent: #2563eb;
+    --accent-tint: #eff6ff;
+    --warn: #b45309;
+    --warn-tint: #fef3c7;
+    --allow: #047857;
+    --allow-tint: #ecfdf5;
+    --block: #b91c1c;
+    --block-tint: #fef2f2;
+
+    /* atom-one-dark for code blocks */
+    --code-bg: #282c34;
+    --code-fg: #abb2bf;
+    --code-comment: #5c6370;
+    --code-keyword: #c678dd;
+    --code-string: #98c379;
+    --code-number: #d19a66;
+    --code-fn: #61afef;
+    --code-type: #e5c07b;
+    --code-punct: #abb2bf;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 40px 28px 96px;
+  }
+
+  header {
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  header .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  header a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  header a:hover { text-decoration: underline; }
+
+  h2 {
+    margin: 40px 0 14px;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  h2 .num {
+    display: inline-block;
+    width: 26px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  h3 {
+    margin: 24px 0 10px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  p { margin: 10px 0; }
+
+  ul { margin: 8px 0 12px 22px; padding: 0; }
+  li { margin: 4px 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 13.5px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: #f5f5f4;
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.axis { font-weight: 600; width: 21%; color: var(--text); }
+  td.num  { text-align: right; font-variant-numeric: tabular-nums; }
+
+  code, pre {
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 12.5px;
+  }
+  p code, li code, td code {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; border: none; }
+
+  /* lightweight token spans (hand-applied below) */
+  .tk-kw   { color: var(--code-keyword); }
+  .tk-str  { color: var(--code-string); }
+  .tk-num  { color: var(--code-number); }
+  .tk-fn   { color: var(--code-fn); }
+  .tk-ty   { color: var(--code-type); }
+  .tk-cm   { color: var(--code-comment); font-style: italic; }
+  .tk-pun  { color: var(--code-punct); }
+
+  /* diff blocks (hand-rolled, palette-matched) */
+  pre.diff { padding: 0; }
+  pre.diff .line { display: block; padding: 0 16px; white-space: pre; }
+  pre.diff .hunk { color: #56b6c2; background: #2c3138; }
+  pre.diff .add  { color: #98c379; background: rgba(46, 160, 67, 0.12); }
+  pre.diff .del  { color: #e06c75; background: rgba(229, 83, 75, 0.12); }
+  pre.diff .ctx  { color: var(--code-fg); }
+
+  /* insight callouts */
+  .insight {
+    margin: 18px 0;
+    padding: 12px 16px;
+    background: var(--accent-tint);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: 14px;
+    color: #0f172a;
+  }
+  .insight .label {
+    display: inline-block;
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 4px;
+  }
+
+  .bottomline {
+    margin: 36px 0 0;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .bottomline h2 {
+    margin-top: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  /* small inline label tags for repo identity */
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    vertical-align: 2px;
+  }
+  .tag.local { background: var(--allow-tint); color: var(--allow); border: 1px solid #a7f3d0; }
+  .tag.pr    { background: var(--warn-tint); color: var(--warn); border: 1px solid #fde68a; }
+
+  .col-local, .col-pr { font-size: 13px; }
+
+  /* paths refer to specific files */
+  .path {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">Side-by-side</div>
+  <h1>ressrf-go vs <a href="https://github.com/timescale/ressrf/pull/25">ressrf PR&nbsp;#25</a></h1>
+  <div class="subtitle">
+    Two independent Go ports of the same Rust <code>ressrf-core</code> SSRF engine.
+    <span class="tag local">local</span> = this repo (<code>timescale/ressrf-go</code>) &middot;
+    <span class="tag pr">PR&nbsp;#25</span> = new <code>go/ressrf-static</code> in <code>timescale/ressrf</code>.
+  </div>
+</header>
+
+<p>
+  Same problem, two designs. PR&nbsp;#25 adds <code>go/ressrf-static</code> as a sibling to the existing
+  WASM-backed <code>go/ressrf</code>, motivated by binary size and dropping the wazero runtime.
+  This repo is a standalone port that has been iterating longer — it's the source of the codegen
+  pipeline and the differential-fuzz harness, neither of which exists in the PR.
+</p>
+
+<div class="insight">
+  <div class="label">Insight</div>
+  Two ports of the same Rust core, written without coordination, end up making opposite choices on
+  almost every API axis (typed-iota vs. string presets, sealed-sum reasons vs. string codes, additive
+  <code>WithDenied*</code> + separate constructor vs. single builder with implicit mode-flip). That's
+  the value of the cross-language conformance vectors: they constrain <em>behaviour</em> without
+  dictating <em>shape</em>, so each binding can be idiomatic in its host language while staying
+  observably interchangeable.
+</div>
+
+<!-- ======================== ERGONOMICS ======================== -->
+<h2><span class="num">1.</span> Ergonomics</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Axis</th>
+      <th class="col-local"><span class="tag local">local</span> ressrf-go</th>
+      <th class="col-pr"><span class="tag pr">PR&nbsp;#25</span> ressrf-static</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="axis">Public API</td>
+      <td>thin <code>ressrf</code> + <code>internal/engine</code></td>
+      <td>flat <code>ressrfstatic</code> package, no internal boundary</td>
+    </tr>
+    <tr>
+      <td class="axis">Preset type</td>
+      <td>typed <code>uint8</code> iota; unknown rejected at <code>buildPolicy</code></td>
+      <td><code>type Preset string</code>; unknown only caught at IP-check fallthrough</td>
+    </tr>
+    <tr>
+      <td class="axis">Cloud provider</td>
+      <td>opaque <code>CloudProvider{s string}</code> with sealed exported vars (<code>CloudAWS</code>, …) + single <code>ParseCloudProvider</code> boundary</td>
+      <td>one Go sub-package per provider (<code>cloud/aws</code>, <code>cloud/azure</code>, <code>cloud/gcp</code>) with a <code>Module()</code> constructor</td>
+    </tr>
+    <tr>
+      <td class="axis">Allow-list mode flip</td>
+      <td>explicit separate constructor <code>NewAllowListPolicy(preset, allowed, opts...)</code></td>
+      <td>implicit: non-empty <code>WithTrustedSuffixes(...)</code> on the same builder</td>
+    </tr>
+    <tr>
+      <td class="axis">Options style</td>
+      <td>composable <code>Option func(*config)</code> values (functional options)</td>
+      <td>fluent <code>b.WithX().WithY()</code> builder</td>
+    </tr>
+    <tr>
+      <td class="axis">Deny reasons</td>
+      <td>sealed-sum <code>DenyReason</code> interface + concrete structs (<code>*InDenyCIDR{CIDR,Source}</code>, <code>*SchemeNotAllowed{Scheme}</code>) — type-switchable</td>
+      <td>single <code>*BlockedError</code> with <code>Reason DenyReason</code> string constant + flat <code>URL/Host/IP/Suffix/DetailText</code> fields</td>
+    </tr>
+    <tr>
+      <td class="axis">Protocol adapters</td>
+      <td>three sub-packages: <code>httpx</code>, <code>tcpx</code>, <code>sshx</code>; SSH-only consumers don't drag <code>x/crypto</code> into the binary</td>
+      <td>methods on <code>*Policy</code>: <code>p.HTTPClient()</code>, <code>p.SafeDialer()</code>, <code>p.SSHDial()</code> — <code>x/crypto</code> always linked</td>
+    </tr>
+    <tr>
+      <td class="axis">Lifecycle</td>
+      <td>no <code>Close()</code> needed</td>
+      <td>no <code>Close()</code> needed (parity-win over WASM sibling, which needs <code>Build(ctx)/Close(ctx)</code>)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Where the typed reason pays off</h3>
+<p>
+  Acting on a category-specific field with the sealed-sum design is a type switch with typed
+  fields:
+</p>
+
+<pre><code><span class="tk-kw">switch</span> r := err.(*ressrf.BlockedError).Reason.(<span class="tk-kw">type</span>) {
+<span class="tk-kw">case</span> *ressrf.<span class="tk-ty">InDenyCIDR</span>:
+    log.Warn(<span class="tk-str">"blocked by CIDR"</span>, <span class="tk-str">"cidr"</span>, r.CIDR, <span class="tk-str">"source"</span>, r.Source)
+<span class="tk-kw">case</span> *ressrf.<span class="tk-ty">SchemeNotAllowed</span>:
+    log.Warn(<span class="tk-str">"blocked scheme"</span>, <span class="tk-str">"scheme"</span>, r.Scheme)
+}</code></pre>
+
+<p>vs. the PR's flat string with the CIDR stuffed into a free-text field:</p>
+
+<pre><code><span class="tk-kw">if</span> be, ok := err.(*ressrfstatic.BlockedError); ok &amp;&amp; be.Reason == ressrfstatic.ReasonIPDeniedByCIDR {
+    log.Warn(<span class="tk-str">"blocked by CIDR"</span>, <span class="tk-str">"cidr"</span>, be.DetailText) <span class="tk-cm">// string, no Source tier</span>
+}</code></pre>
+
+<p>
+  The PR's flat string reasons are simpler to wire to JSON audit logs and mirror the Rust serde
+  shape, but lose compile-time exhaustiveness.
+</p>
+
+<h3>The cloud-provider design is the most interesting divergence</h3>
+<p>
+  PR&nbsp;#25's sub-package split (<code>import "cloud/aws"</code>) lets the linker tree-shake unused
+  datasets — they report <strong>3.2&nbsp;MB saved</strong> when only AWS is needed (Azure JSON alone is 108k
+  lines). This repo embeds all cloud data unconditionally via codegen (<code>internal/engine/cloud_generated.go</code>),
+  so binary size is constant. PR's approach is strictly better on size but requires more imports per
+  call site. This repo's <code>CloudProvider</code> value type is more ergonomic for runtime/config-driven
+  selection (single <code>ParseCloudProvider</code> boundary; the zero value is the only invalid state).
+</p>
+
+<!-- ======================== TESTING ======================== -->
+<h2><span class="num">2.</span> Testing</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Axis</th>
+      <th class="col-local"><span class="tag local">local</span> ressrf-go</th>
+      <th class="col-pr"><span class="tag pr">PR&nbsp;#25</span> ressrf-static</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="axis">Cross-language vectors</td>
+      <td>yes, 8 JSON files vendored under <code>conformance/vectors/</code></td>
+      <td>yes, 8 JSON files at <code>testdata/vectors/</code> (same upstream source)</td>
+    </tr>
+    <tr>
+      <td class="axis">Native Go fuzz</td>
+      <td><strong>6 fuzz targets</strong>: CIDR, URI validator, URL rules, policy, diff oracle, multi-CIDR containment</td>
+      <td>none</td>
+    </tr>
+    <tr>
+      <td class="axis">Differential fuzz</td>
+      <td><strong>diffuzz harness</strong> at <code>internal/diff/oracle.go</code> — random URLs through native Go + Rust-WASM; fails on allow/block divergence. Build-tagged so wazero stays out of default builds. README: has caught 3 parser-level divergences.</td>
+      <td>none</td>
+    </tr>
+    <tr>
+      <td class="axis">Cross-engine parity</td>
+      <td>continuous via diffuzz on random inputs</td>
+      <td>snapshot via <code>TestParityIPLevel</code> + <code>TestParityURLLevel</code> — 129 fixed cases through both backends</td>
+    </tr>
+    <tr>
+      <td class="axis">Build / data drift gate</td>
+      <td>monthly <code>update-data.yml</code> workflow + per-PR drift check on <code>./config/*.json</code></td>
+      <td><code>go generate &amp;&amp; git diff --exit-code</code> in test plan</td>
+    </tr>
+    <tr>
+      <td class="axis">Bench coverage</td>
+      <td>4 benches incl. blocked-IP path</td>
+      <td>4 benches, same shape (mirrors <code>go/ressrf/bench_test.go</code> for direct comparison)</td>
+    </tr>
+    <tr>
+      <td class="axis">Test bypass</td>
+      <td><code>DisableForTests(t testing.TB)</code> — setter gated on <code>*testing.TB</code>, production code cannot reach it; hot path uses <code>var bypassed = testBypass.Load</code> (function-pointer micro-opt)</td>
+      <td><code>DisableForTests(t testing.TB)</code> — same shape, no function-pointer cache</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="insight">
+  <div class="label">Insight</div>
+  Diffuzz vs. fixed parity vectors is the most important testing-strategy gap. Fixed vectors prove
+  <em>known</em> equivalence; the diff fuzzer proves <em>random</em> equivalence. The PR explicitly
+  takes the trade — its parity gate runs in-CI without external toolchains, while diffuzz needs
+  Rust&nbsp;+&nbsp;cargo&nbsp;+&nbsp;wasm32-wasip1. This repo isolates that cost behind the <code>diffuzz</code>
+  build tag and a <code>make fuzz-rust</code> entry point, so the default <code>go&nbsp;test</code> path
+  stays lean. Vectors catch known SSRF tricks; the fuzzer catches the third parser divergence you
+  didn't know existed.
+</div>
+
+<p>
+  PR's parity gate is strictly cheaper to run (no Rust toolchain, no WASM compile) but can only catch
+  divergences on URLs already in <code>ssrf_techniques.json</code>. Once the PR lands, adding
+  diffuzz-on-the-static-port would close that gap.
+</p>
+
+<p>
+  The native fuzz targets in <code>internal/engine/*_fuzz_test.go</code> are also missing from the PR.
+  For a security-critical parser these are cheap insurance — <code>go test -fuzz=FuzzCIDR -fuzztime=30s</code>
+  finds malformed-input crashes the vectors will never enumerate.
+</p>
+
+<!-- ======================== PERFORMANCE ======================== -->
+<h2><span class="num">3.</span> Performance</h2>
+
+<p>
+  PR's published numbers (<code>-benchtime=5s</code> on M1 Max, native vs. WASM in the same repo):
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Op</th>
+      <th class="num">Native (static)</th>
+      <th class="num">WASM</th>
+      <th class="num">Speedup</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>PolicyBuild</td>           <td class="num">56 µs</td>   <td class="num">7.8 ms</td>  <td class="num">~140×</td></tr>
+    <tr><td>IsAllowed (allowed)</td>   <td class="num">1.29 µs</td> <td class="num">2.40 µs</td> <td class="num">~1.9×</td></tr>
+    <tr><td>IsAllowed (blocked)</td>   <td class="num">815 ns</td>  <td class="num">3.08 µs</td> <td class="num">~3.8×</td></tr>
+    <tr><td>IsNetworkAllowed</td>      <td class="num">481 ns</td>  <td class="num">1.51 µs</td> <td class="num">~3.1×</td></tr>
+  </tbody>
+</table>
+
+<p>
+  That comparison is WASM vs. native <em>within the PR's own repo</em> — not this repo vs. the PR.
+  Both Go ports should be in the same order of magnitude on <code>IsAllowed</code>. They diverge on
+  data structure:
+</p>
+
+<ul>
+  <li>
+    <span class="tag pr">PR&nbsp;#25</span> CIDR uses a hand-rolled <code>[16]byte network + [16]byte mask + uint8 prefixLen</code>
+    with an inline 16-iteration AND-compare in <code>Contains</code>.
+  </li>
+  <li>
+    <span class="tag local">local</span> uses <code>netip.Prefix.Contains</code> (one function call, no allocation)
+    and <code>netip.AddrFrom16(addr.As16())</code>.
+  </li>
+</ul>
+
+<p>
+  Both are linear scans (~30 entries in the IANA set) — the README notes the linear scan beats trees
+  because of cache locality at this size. Likely tie within noise on the hot path; the PR may shave a
+  few ns on <code>Contains</code> by skipping the <code>netip.Prefix</code> indirection, but pays for
+  it with <code>string -> netip.Addr</code> re-parsing in <code>CIDRSet.Contains(ipStr string)</code>
+  where this repo's <code>IsNetworkAllowedAddrs(ctx, []netip.Addr)</code> lets dialers skip the
+  round-trip entirely.
+</p>
+
+<div class="insight">
+  <div class="label">Insight</div>
+  This repo's <code>IsNetworkAllowedAddrs</code> is a small but real win for the TCP Control hook hot
+  path: the <code>syscall.RawConn</code> callback already has a <code>net.SplitHostPort</code> +
+  <code>netip.ParseAddr</code>; passing the parsed <code>netip.Addr</code> straight in avoids
+  re-parsing inside the engine. The PR's <code>IsNetworkAllowed([]string)</code> forces a
+  stringify-then-reparse on every dial. At dial frequency this is irrelevant; at 100k&nbsp;req/s it
+  matters.
+</div>
+
+<h3>Binary size</h3>
+<p>
+  PR wins decisively for selective-cloud consumers (3.2&nbsp;MB saved when only AWS is needed).
+  This repo always links all three cloud datasets via the <code>cloud_generated.go</code> codegen
+  path. If size matters more than the simpler import surface, the PR's <code>cloud/{aws,azure,gcp}</code>
+  split is the model.
+</p>
+
+<h3>Allocation profile</h3>
+<p>
+  PR's <code>validateAddresses</code> does <code>make([]string, len(ips))</code> + <code>copy</code>
+  in <code>emitHostValidated</code> on every check — but the <code>if p.auditSink == nil</code>
+  returns first, so this is moot in production (with-sink path does allocate per call). This repo
+  emits with <code>[]netip.Addr</code> and only stringifies inside the emit helper after the nil-sink
+  early return. Equivalent on the no-sink path.
+</p>
+
+<!-- ======================== SECURITY ======================== -->
+<h2><span class="num">4.</span> Security</h2>
+
+<p>
+  Both engines implement the same Rust core's BS-1..BS-6 URI bypasses, ambiguous-IP rejection
+  (octal/hex/decimal/shorthand), userinfo bypass guard, IPv4-mapped IPv6 normalization, and post-DNS
+  Control-hook re-check. Where they diverge:
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Concern</th>
+      <th class="col-local"><span class="tag local">local</span> ressrf-go</th>
+      <th class="col-pr"><span class="tag pr">PR&nbsp;#25</span> ressrf-static</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="axis">Allow-list mode flip visibility</td>
+      <td><strong>explicit separate constructor</strong> <code>NewAllowListPolicy</code> — code reviewer scanning options chain knows <code>NewPolicy</code> is deny-only</td>
+      <td><strong>implicit</strong> — <code>WithTrustedSuffixes(...)</code> flips mode by being non-empty; same builder for both shapes</td>
+    </tr>
+    <tr>
+      <td class="axis">Unknown preset handling</td>
+      <td><strong>rejected at construction</strong> with <code>ErrUnknownPreset</code>. Doc-comment explains the failure mode: a bad cast or future preset would silently map to <code>PresetNone</code> (permit-all).</td>
+      <td>falls through <code>checkOneIP</code>'s <code>default:</code> and returns a <code>fmt.Errorf</code> per-IP. Every IP fails with a non-<code>BlockedError</code>; callers using <code>errors.Is(err, ErrBlocked)</code> see <em>false</em> and treat it as a transient error, not a policy denial.</td>
+    </tr>
+    <tr>
+      <td class="axis">Cloud-provider typo handling</td>
+      <td><code>ParseCloudProvider</code> returns <code>ErrUnknownCloudProvider</code> at parse boundary; hard-coded sites use sealed exported vars (typo = compile error)</td>
+      <td><code>WithCloudModule(aws.Module())</code> — typo is also a compile error (better here). String-named providers don't exist in this API.</td>
+    </tr>
+    <tr>
+      <td class="axis">Engine→Blocked error coercion</td>
+      <td>typed via <code>toBlockedError</code>: if the engine returns something <em>not</em> implementing <code>DenyReason</code>, it falls back to <code>Detail</code> so <code>errors.Is(err, ErrBlocked)</code> still holds. Doc calls out the prior bug: an unchecked type assertion that would panic if a future engine change wrapped the rejection.</td>
+      <td>direct <code>err.(*BlockedError)</code> assertion in <code>validateAddresses</code> — if <code>checkOneIP</code> ever returns a non-<code>*BlockedError</code> (the <code>default:</code> branch already does), this panics.</td>
+    </tr>
+    <tr>
+      <td class="axis">Audit-sink failure handling</td>
+      <td><code>sinkAdapter.Emit</code> substitutes a marker payload when JSON marshal fails, with comment "audit gaps are the failure mode this library exists to prevent"</td>
+      <td>typed event structs — no JSON marshalling at emission time, so the failure mode doesn't exist (better by construction)</td>
+    </tr>
+    <tr>
+      <td class="axis">Audit ordering under concurrency</td>
+      <td><code>sinkMu sync.Mutex</code> serialises emission so concurrent callers see in-order events</td>
+      <td>no mutex around <code>p.auditSink.Emit(...)</code>; doc says "implementations must be safe for concurrent use" — pushes the requirement to the user</td>
+    </tr>
+    <tr>
+      <td class="axis">Allow-list construction safety</td>
+      <td><code>NewAllowListPolicy</code> rejects empty slice with <code>ErrEmptyAllowList</code> — "an empty allow-list would reject every non-IP host"</td>
+      <td>non-empty check is the <em>only</em> mode signal — passing <code>WithTrustedSuffixes()</code> accidentally with zero args is a silent no-op</td>
+    </tr>
+    <tr>
+      <td class="axis">Redirect cap</td>
+      <td>10 hops, typed <code>ErrTooManyRedirects</code> constant</td>
+      <td>10 hops, returns <code>fmt.Errorf("...too many redirects (max 10)")</code> — un-<code>errors.Is</code>-able</td>
+    </tr>
+    <tr>
+      <td class="axis">Plaintext-HTTP downgrade</td>
+      <td>always rejected</td>
+      <td>toggleable via <code>WithAllowPlaintextHTTP(bool)</code> (matches Rust ProtocolRules; default = reject)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>The unknown-preset failure mode, side by side</h3>
+
+<pre class="diff"><span class="line hunk">@@ Local: reject unknown preset at construction @@</span><span class="line add">+ if preset not in {None, ExternalOnly, InternalOnly}:</span><span class="line add">+     return nil, fmt.Errorf("%w: %d", ErrUnknownPreset, preset)</span><span class="line ctx">  // -> caller sees ErrUnknownPreset; cannot build a permit-all policy</span>
+<span class="line hunk">@@ PR: unknown preset surfaces per-IP, NOT as ErrBlocked @@</span><span class="line del">- default:</span><span class="line del">-     return fmt.Errorf("ressrfstatic: unknown preset %q", p.preset)</span><span class="line ctx">  // -> Policy built. Each IsNetworkAllowed call returns a non-*BlockedError.</span>
+<span class="line ctx">  //    Caller doing errors.Is(err, ErrBlocked) -> false -> treats as transient.</span></pre>
+
+<div class="insight">
+  <div class="label">Insight</div>
+  The "implicit mode flip" / "unknown preset silently permits" / "empty allow-list = no-op" cluster
+  matters more than it looks. SSRF protection fails in one direction: a permit-all bug is a
+  vulnerability; a deny-all bug is a 5xx. Every one of this repo's explicit-construction guards
+  (<code>NewAllowListPolicy</code> rejects empty, <code>buildPolicy</code> rejects unknown preset,
+  <code>toBlockedError</code> keeps <code>errors.Is(ErrBlocked)</code> true even on adapter errors)
+  is a deliberate tilt toward "fail closed when misconfigured." The PR is mostly equivalent on the
+  validator itself but is missing the construction-time guards — easy to add post-merge.
+</div>
+
+<!-- ======================== BOTTOM LINE ======================== -->
+<div class="bottomline">
+  <h2>Bottom line</h2>
+  <p>
+    The PR is a clean port and pulls its weight as an alternative to the WASM-backed sibling. It wins on
+    <strong>binary size</strong> (tree-shakable cloud sub-packages) and <strong>import surface</strong>
+    (one package, no <code>internal/</code>). This repo wins on <strong>type safety</strong> (sealed-sum
+    reasons, opaque <code>CloudProvider</code>, separate allow-list constructor), <strong>testing depth</strong>
+    (native + differential fuzz, drift gates), and <strong>construction-time misconfig detection</strong>
+    (unknown preset rejected, empty allow-list rejected, audit marshal-failure handled).
+  </p>
+  <p>
+    Most differences are addable in either direction. The tree-shakable cloud split is the one design
+    choice that's structurally hard to retrofit (it forces an import cycle break — see PR's
+    <code>cloudmod</code> package — that you'd need to mirror). The diffuzz harness and native fuzz
+    targets are the easiest wins to upstream into the PR if it lands.
+  </p>
+</div>
+
+</main>
+</body>
+</html>

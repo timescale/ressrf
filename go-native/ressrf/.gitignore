@@ -1,0 +1,23 @@
+# Test binaries
+*.test
+*.out
+
+# Coverage profiles
+*.prof
+*.cover
+coverage.txt
+
+# Build/IDE noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Go fuzz corpus / cache directories that should not be committed
+# (in-repo seed corpora live under testdata/ which we do want).
+go.work
+go.work.sum
+
+# Differential-fuzz oracle artifact: rebuilt from upstream via
+# `make diffuzz-build-wasm`, not committed.
+internal/diff/testdata/ressrf_wasm.wasm
