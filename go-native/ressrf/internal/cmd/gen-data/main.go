@@ -27,7 +27,7 @@ import (
 
 func main() {
 	configDir := flag.String("config", "../../crates/ressrf-core/config", "directory containing ip_ranges.json + domains_*.json (default points at the workspace's shared Rust crate config)")
-	outDir := flag.String("out", "internal/engine", "directory to write generated Go files into (relative to repo root)")
+	outDir := flag.String("out", "internal/engine", "directory to write generated Go files into (relative to the current working directory; run from go-native/ressrf/)")
 	flag.Parse()
 
 	if err := generateIPRanges(*configDir, *outDir); err != nil {
