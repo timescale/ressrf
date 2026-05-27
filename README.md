@@ -37,27 +37,27 @@ ressrf (pronounced "resurf") validates network destinations against configurable
                      ┌─────────────────────────┐
                      │      ressrf-core        │
                      │  (policy, CIDR, URI,    │
-                     │   audit, cloud, trie)   │
-                     └───────┬─────────────────┘
-                             │
-           ┌─────────────────┼─────────────────┐
-           │                 │                 │
-           ▼                 ▼                 ▼
-   ┌────────────────┐ ┌─────────────┐  ┌────────────────┐
-   │  ressrf-wasm   │ │ ressrf-http │  │  ressrf-ssh    │
-   │  (WASM ABI)    │ │ (Tower)     │  │  (russh)       │
-   └───────┬────────┘ └──────┬──────┘  └───────┬────────┘
-           │                 │                 │
-     ┌─────┴─────┐           └───────┬─────────┘
-     │           │                   │
-     ▼           ▼                   ▼
-┌─────────┐ ┌──────────┐      ┌──────────────┐
-│   Go    │ │  Node.js │      │    Python    │
-│ (wazero)│ │  (WASM)  │      │   (PyO3)     │
-└─────────┘ └──────────┘      └──────────────┘
+                     │   audit, cloud, trie)   │            ┌──────────────────────┐
+                     └───────┬─────────────────┘            │     Go (native)      │
+                             │                              │   pure-Go port       │
+           ┌─────────────────┼─────────────────┐            │                      │
+           │                 │                 │            │ Consumes only the    │
+           ▼                 ▼                 ▼            │ shared JSON:         │
+   ┌────────────────┐ ┌─────────────┐  ┌────────────────┐   │ • config/*.json      │
+   │  ressrf-wasm   │ │ ressrf-http │  │  ressrf-ssh    │   │ • tests/vectors      │
+   │  (WASM ABI)    │ │ (Tower)     │  │  (russh)       │   │                      │
+   └───────┬────────┘ └──────┬──────┘  └───────┬────────┘   │ No Rust dependency;  │
+           │                 │                 │            │ pinned to ressrf-    │
+     ┌─────┴─────┐           └───────┬─────────┘            │ core via differen-   │
+     │           │                   │                      │ tial fuzz against    │
+     ▼           ▼                   ▼                      │ ressrf-wasm.         │
+┌──────────┐ ┌──────────┐      ┌──────────────┐             └──────────────────────┘
+│Go(wazero)│ │  Node.js │      │    Python    │
+│  binding │ │  (WASM)  │      │   (PyO3)     │
+└──────────┘ └──────────┘      └──────────────┘
 ```
 
-Go additionally ships a native port at [`go-native/ressrf/`](go-native/ressrf/) that reimplements the engine in pure Go (`net/netip` + `regexp`). It consumes the same `tests/vectors/` conformance contract and stays in lockstep with `ressrf-core` via a differential-fuzz harness that compares every random URL against the WASM oracle. No WASM runtime, no embedded `.wasm`, no Rust toolchain in the build pipeline — useful for Go shops that prefer native debuggability (`pprof`, `delve`) and contribution flow (no Rust toolchain in PRs).
+The native Go port lives at [`go-native/ressrf/`](go-native/ressrf/). It's useful for Go shops that prefer native debuggability (`pprof`, `delve`) and a contribution flow that doesn't pull the Rust toolchain into PRs.
 
 ## Quick Start
 
