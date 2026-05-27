@@ -213,12 +213,20 @@ if errors.Is(err, ressrf.ErrBlocked) {
 
 | Function | Description |
 |----------|-------------|
-| `Disabled() bool` | Returns true when protection is disabled |
-| `DisableForTests(t testing.TB)` | Disables protection for the duration of `t`, auto-restores via `t.Cleanup` |
+| `ressrf.Disabled() bool` | Returns true when protection is disabled |
+| `ressrftest.DisableForTests(t testing.TB)` | Disables protection for the duration of `t`, auto-restores via `t.Cleanup` |
+
+`DisableForTests` lives in the [`ressrftest`](ressrftest/) subpackage so the `testing` package (with its flag parsing and benchmark scaffolding) stays out of production binaries.
 
 ```go
+import (
+    "testing"
+
+    "github.com/timescale/ressrf/go/ressrf/ressrftest"
+)
+
 func TestMyHandler(t *testing.T) {
-    ressrf.DisableForTests(t) // all policy checks become no-ops
+    ressrftest.DisableForTests(t) // all policy checks become no-ops
 
     // Test code that needs to reach loopback infrastructure
     resp, err := client.Get("http://127.0.0.1:8080/health")

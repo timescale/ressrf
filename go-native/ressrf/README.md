@@ -42,14 +42,22 @@ See the Go examples on [pkg.go.dev](https://pkg.go.dev/github.com/timescale/ress
 
 ## Test bypass
 
+`DisableForTests` lives in the [`ressrftest`](ressrftest/) subpackage so the `testing` package (with its flag parsing and benchmark scaffolding) stays out of production binaries.
+
 ```go
+import (
+    "testing"
+
+    "github.com/timescale/ressrf/go-native/ressrf/ressrftest"
+)
+
 func TestSomething(t *testing.T) {
-    ressrf.DisableForTests(t) // auto-reverted via t.Cleanup
+    ressrftest.DisableForTests(t) // auto-reverted via t.Cleanup
     // ... policy checks become no-ops for the rest of this test
 }
 ```
 
-Production code cannot flip the bypass: the setter is gated on `testing.TB`.
+Production code cannot flip the bypass: the setter is gated on `testing.TB` and only exists in the `ressrftest` subpackage.
 
 ## Differential fuzz vs the Rust oracle
 
