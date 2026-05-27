@@ -170,13 +170,13 @@ func (e *RedirectSchemeDowngrade) Error() string {
 func (*RedirectSchemeDowngrade) Kind() DenyKind { return DenyRedirectSchemeDowngrade }
 func (*RedirectSchemeDowngrade) isDenyReason()  {}
 
-// PlaintextHttpDenied signals the policy required HTTPS but plain HTTP was
+// PlaintextHTTPDenied signals the policy required HTTPS but plain HTTP was
 // supplied.
-type PlaintextHttpDenied struct{}
+type PlaintextHTTPDenied struct{}
 
-func (*PlaintextHttpDenied) Error() string  { return "plaintext HTTP denied" }
-func (*PlaintextHttpDenied) Kind() DenyKind { return DenyPlaintextHTTPDenied }
-func (*PlaintextHttpDenied) isDenyReason()  {}
+func (*PlaintextHTTPDenied) Error() string  { return "plaintext HTTP denied" }
+func (*PlaintextHTTPDenied) Kind() DenyKind { return DenyPlaintextHTTPDenied }
+func (*PlaintextHTTPDenied) isDenyReason()  {}
 
 // --- URL rule variants -------------------------------------------------------
 

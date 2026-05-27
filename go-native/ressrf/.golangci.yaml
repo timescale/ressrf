@@ -31,6 +31,7 @@ linters:
         - name: exported
         - name: increment-decrement
         - name: var-declaration
+        - name: var-naming   # catches non-idiomatic acronym casing (UrlFoo / HttpBar / IpBaz)
         - name: package-comments
           disabled: true
     exhaustive:

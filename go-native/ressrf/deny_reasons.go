@@ -79,7 +79,7 @@ type (
 	NotInAllowList           = engine.NotInAllowList
 	MultiHostFallbackDenied  = engine.MultiHostFallbackDenied
 	RedirectSchemeDowngrade  = engine.RedirectSchemeDowngrade
-	PlaintextHTTPDenied      = engine.PlaintextHttpDenied
+	PlaintextHTTPDenied      = engine.PlaintextHTTPDenied
 	URLRuleDenied            = engine.URLRuleDenied
 	URLRuleNotInAllowList    = engine.URLRuleNotInAllowList
 )
