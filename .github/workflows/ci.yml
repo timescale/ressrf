@@ -291,3 +291,69 @@ jobs:
           docker pull wiremock/wiremock:3.9.1
       - name: Run Tier 2 e2e tests
         run: cargo test --features e2e -p ressrf-tcp --test ssrf_e2e --locked
+
+  test-go-native:
+    # Native Go port at go-native/ressrf/. No WASM runtime, no Rust
+    # toolchain; depends on neither the build-wasm step nor the wazero
+    # binding.
+    name: Test Go native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.0.2
+        with:
+          go-version-file: go-native/ressrf/go.mod
+          cache-dependency-path: go-native/ressrf/go.sum
+      - name: Test
+        working-directory: go-native/ressrf
+        run: go test -count=1 -race ./...
+      - name: Vet
+        working-directory: go-native/ressrf
+        run: go vet ./...
+
+  lint-go-native:
+    name: Lint Go native
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.0.2
+        with:
+          go-version-file: go-native/ressrf/go.mod
+          cache-dependency-path: go-native/ressrf/go.sum
+      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: latest
+          working-directory: go-native/ressrf
+
+  generated-up-to-date:
+    # Drift check: if a contributor edits crates/ressrf-core/config/*.json
+    # without re-running `go generate ./...` from the native Go module,
+    # the baked-in tables under go-native/ressrf/internal/engine/ go
+    # stale. `make check-generated` regenerates and fails on diff.
+    name: Generated Go files up to date
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.0.2
+        with:
+          go-version-file: go-native/ressrf/go.mod
+          cache-dependency-path: go-native/ressrf/go.sum
+      - name: Check generated files
+        working-directory: go-native/ressrf
+        run: make check-generated

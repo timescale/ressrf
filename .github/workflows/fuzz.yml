@@ -81,3 +81,58 @@ jobs:
           name: fuzz-crashes-${{ matrix.target }}
           path: fuzz/artifacts/${{ matrix.target }}/
           retention-days: 30
+
+  fuzz-go-native:
+    # Native Go port fuzz targets — package-local engine primitives.
+    # Independent of the Rust cargo-fuzz job above; both jobs share
+    # the weekly Monday 03:00 trigger.
+    name: Fuzz Go native (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - FuzzParseCIDR
+          - FuzzParseCIDRLoose
+          - FuzzIsAmbiguousIP
+          - FuzzValidateURL
+          - FuzzPolicy
+          - FuzzURLRulesEvaluate
+          - FuzzGlobMatchHost
+          - FuzzGlobMatchPath
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.0.2
+        with:
+          go-version-file: go-native/ressrf/go.mod
+          cache-dependency-path: go-native/ressrf/go.sum
+
+      - name: Restore corpus cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/go-build/fuzz/github.com/timescale/ressrf/go-native/ressrf/internal/engine/${{ matrix.target }}
+          key: go-fuzz-corpus-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            go-fuzz-corpus-${{ matrix.target }}-
+
+      - name: Run fuzzer
+        working-directory: go-native/ressrf
+        env:
+          FUZZ_TARGET: ${{ matrix.target }}
+          FUZZ_DURATION: ${{ github.event.inputs.duration || '60' }}s
+        # Delegates to the Makefile so local `make fuzz FUZZ_TARGET=... FUZZ_DURATION=...`
+        # and CI run identical commands.
+        run: make fuzz
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: go-fuzz-crashes-${{ matrix.target }}
+          path: go-native/ressrf/internal/engine/testdata/fuzz/${{ matrix.target }}/
+          retention-days: 30

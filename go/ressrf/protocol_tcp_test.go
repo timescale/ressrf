@@ -5,6 +5,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/timescale/ressrf/go/ressrf/ressrftest"
 )
 
 func buildExternalPolicy(t *testing.T) *Policy {
@@ -59,7 +61,7 @@ func TestDialContextRespectsDisableForTests(t *testing.T) {
 	p := buildExternalPolicy(t)
 	defer func() { _ = p.Close(context.Background()) }()
 
-	DisableForTests(t)
+	ressrftest.DisableForTests(t)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

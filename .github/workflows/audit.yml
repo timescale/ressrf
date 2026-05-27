@@ -8,6 +8,8 @@ on:
       - "Cargo.lock"
       - "go/ressrf/go.mod"
       - "go/ressrf/go.sum"
+      - "go-native/ressrf/go.mod"
+      - "go-native/ressrf/go.sum"
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +17,8 @@ on:
       - "Cargo.lock"
       - "go/ressrf/go.mod"
       - "go/ressrf/go.sum"
+      - "go-native/ressrf/go.mod"
+      - "go-native/ressrf/go.sum"
   schedule:
     - cron: "0 6 * * *" # Daily at 06:00 UTC
 
@@ -40,20 +44,26 @@ jobs:
       - run: cargo audit
 
   govulncheck:
-    name: govulncheck
+    name: govulncheck (${{ matrix.module }})
     runs-on: ubuntu-latest
     permissions:
       contents: read # checkout
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both Go modules need an independent scan: they share the
+        # workspace but each has its own go.mod / go.sum.
+        module: [go/ressrf, go-native/ressrf]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.0.2
         with:
-          go-version-file: go/ressrf/go.mod
-          cache-dependency-path: go/ressrf/go.sum
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: ${{ matrix.module }}/go.sum
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
-        working-directory: go/ressrf
+        working-directory: ${{ matrix.module }}
         run: govulncheck ./...

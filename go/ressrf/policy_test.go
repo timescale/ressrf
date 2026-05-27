@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/timescale/ressrf/go/ressrf/ressrftest"
 )
 
 func vectorPath(name string) string {
@@ -472,7 +474,7 @@ func presetBuilder(preset string) *PolicyBuilder {
 }
 
 func TestDisableForTests(t *testing.T) {
-	DisableForTests(t)
+	ressrftest.DisableForTests(t)
 	ctx := context.Background()
 	policy, err := NewPolicyBuilder(PresetExternalOnly).Build(ctx)
 	if err != nil {

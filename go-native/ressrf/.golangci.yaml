@@ -1,0 +1,61 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gocritic
+    - revive
+    - misspell
+    - unconvert
+    - unparam
+    - nilerr
+    - bodyclose
+    - exhaustive
+    - copyloopvar
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: exported
+        - name: increment-decrement
+        - name: var-declaration
+        - name: var-naming   # catches non-idiomatic acronym casing (UrlFoo / HttpBar / IpBaz)
+        - name: package-comments
+          disabled: true
+    exhaustive:
+      default-signifies-exhaustive: true
+  exclusions:
+    rules:
+      # internal/ packages can't be imported from outside the module, so the
+      # revive "exported symbol needs a doc comment" rule is noise there.
+      - path: internal/
+        linters:
+          - revive
+        text: "^exported"
+      # Test files lean on ad-hoc helpers; godoc + gocritic style flags don't
+      # add value to internal test scaffolding.
+      - path: _test\.go$
+        linters:
+          - revive
+          - gocritic
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+output:
+  sort-order:
+    - file

@@ -1,6 +1,8 @@
-# ressrf (Go)
+# ressrf (Go, wazero binding)
 
 Go package for SSRF prevention, powered by the `ressrf-core` engine running in a WASM sandbox via [wazero](https://wazero.io). Zero CGO, zero network dependencies at runtime. The WASM binary is embedded via `//go:embed`.
+
+> Looking for a pure-Go option? The workspace also ships a [native Go port](../../go-native/ressrf/) (`github.com/timescale/ressrf/go-native/ressrf`) that reimplements the engine without WASM. Both bindings share the same `tests/vectors/` conformance contract; pick this one for guaranteed parity with the Rust core, pick the native port for native debuggability and zero WASM-runtime weight.
 
 ## Installation
 
@@ -211,12 +213,20 @@ if errors.Is(err, ressrf.ErrBlocked) {
 
 | Function | Description |
 |----------|-------------|
-| `Disabled() bool` | Returns true when protection is disabled |
-| `DisableForTests(t testing.TB)` | Disables protection for the duration of `t`, auto-restores via `t.Cleanup` |
+| `ressrf.Disabled() bool` | Returns true when protection is disabled |
+| `ressrftest.DisableForTests(t testing.TB)` | Disables protection for the duration of `t`, auto-restores via `t.Cleanup` |
+
+`DisableForTests` lives in the [`ressrftest`](ressrftest/) subpackage so the `testing` package (with its flag parsing and benchmark scaffolding) stays out of production binaries.
 
 ```go
+import (
+    "testing"
+
+    "github.com/timescale/ressrf/go/ressrf/ressrftest"
+)
+
 func TestMyHandler(t *testing.T) {
-    ressrf.DisableForTests(t) // all policy checks become no-ops
+    ressrftest.DisableForTests(t) // all policy checks become no-ops
 
     // Test code that needs to reach loopback infrastructure
     resp, err := client.Get("http://127.0.0.1:8080/health")
