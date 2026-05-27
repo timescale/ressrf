@@ -42,6 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # Fail the job loudly if the WASM oracle is missing rather than
+      # silently passing with every subtest SKIPped. See diff_fuzz_test.go.
+      RESSRF_REQUIRE_WASM: "1"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

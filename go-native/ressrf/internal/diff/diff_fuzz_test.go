@@ -124,6 +124,15 @@ type pair struct {
 func setupPair(ctx context.Context, tb testing.TB) (*Oracle, *ressrf.Policy) {
 	tb.Helper()
 	if _, err := os.Stat(wasmPath()); err != nil {
+		// CI must fail loudly when the oracle is missing; otherwise the
+		// diffuzz workflow silently degrades from "divergence findings
+		// fail the job" to "absence of an oracle blocks nothing". The
+		// developer-facing skip is preserved so a local `go test` over
+		// the diffuzz tag doesn't break when the artifact isn't built
+		// yet.
+		if os.Getenv("RESSRF_REQUIRE_WASM") != "" {
+			tb.Fatalf("wasm artifact missing at %s: %v (RESSRF_REQUIRE_WASM is set; CI requires the oracle)", wasmPath(), err)
+		}
 		tb.Skipf("wasm artifact missing at %s: %v (run `make diffuzz-build-wasm`)", wasmPath(), err)
 	}
 	cfg := PolicyConfig{Preset: "external_only"}
