@@ -10,12 +10,12 @@ import "fmt"
 type DataTier uint8
 
 const (
-	TierIana DataTier = iota
+	TierIANA DataTier = iota
 	TierOverride
-	TierCspMetadata
-	TierCloudAws
+	TierCSPMetadata
+	TierCloudAWS
 	TierCloudAzure
-	TierCloudGcp
+	TierCloudGCP
 	TierDomainSuffix
 	TierUserDeny
 	TierUserAllow
@@ -23,18 +23,18 @@ const (
 
 func (t DataTier) String() string {
 	switch t {
-	case TierIana:
-		return "Iana"
+	case TierIANA:
+		return "IANA"
 	case TierOverride:
 		return "Override"
-	case TierCspMetadata:
-		return "CspMetadata"
-	case TierCloudAws:
-		return "CloudAws"
+	case TierCSPMetadata:
+		return "CSPMetadata"
+	case TierCloudAWS:
+		return "CloudAWS"
 	case TierCloudAzure:
 		return "CloudAzure"
-	case TierCloudGcp:
-		return "CloudGcp"
+	case TierCloudGCP:
+		return "CloudGCP"
 	case TierDomainSuffix:
 		return "DomainSuffix"
 	case TierUserDeny:
@@ -49,38 +49,38 @@ func (t DataTier) String() string {
 type DenyKind uint8
 
 const (
-	DenyUrlParseError DenyKind = iota
+	DenyURLParseError DenyKind = iota
 	DenySchemeNotAllowed
 	DenySchemeRequired
-	DenyBareIpDeniedBeforeScheme
+	DenyBareIPDeniedBeforeScheme
 	DenyHostnameInvalid
-	DenyAmbiguousIpEncoding
+	DenyAmbiguousIPEncoding
 	DenyUserinfoBypassAttempt
 	DenyDomainNotInAllowList
 	DenyDomainSuffixDenied
-	DenyDnsEmptyResponse
-	DenyInDenyCidr
+	DenyDNSEmptyResponse
+	DenyInDenyCIDR
 	DenyNotInAllowList
 	DenyMultiHostFallbackDenied
 	DenyRedirectSchemeDowngrade
-	DenyPlaintextHttpDenied
-	DenyUrlRuleDenied
-	DenyUrlRuleNotInAllowList
+	DenyPlaintextHTTPDenied
+	DenyURLRuleDenied
+	DenyURLRuleNotInAllowList
 )
 
 func (k DenyKind) String() string {
 	switch k {
-	case DenyUrlParseError:
+	case DenyURLParseError:
 		return "url_parse_error"
 	case DenySchemeNotAllowed:
 		return "scheme_not_allowed"
 	case DenySchemeRequired:
 		return "scheme_required"
-	case DenyBareIpDeniedBeforeScheme:
+	case DenyBareIPDeniedBeforeScheme:
 		return "bare_ip_denied_before_scheme"
 	case DenyHostnameInvalid:
 		return "hostname_invalid"
-	case DenyAmbiguousIpEncoding:
+	case DenyAmbiguousIPEncoding:
 		return "ambiguous_ip_encoding"
 	case DenyUserinfoBypassAttempt:
 		return "userinfo_bypass_attempt"
@@ -88,9 +88,9 @@ func (k DenyKind) String() string {
 		return "domain_not_in_allow_list"
 	case DenyDomainSuffixDenied:
 		return "domain_suffix_denied"
-	case DenyDnsEmptyResponse:
+	case DenyDNSEmptyResponse:
 		return "dns_empty_response"
-	case DenyInDenyCidr:
+	case DenyInDenyCIDR:
 		return "in_deny_cidr"
 	case DenyNotInAllowList:
 		return "not_in_allow_list"
@@ -98,11 +98,11 @@ func (k DenyKind) String() string {
 		return "multi_host_fallback_denied"
 	case DenyRedirectSchemeDowngrade:
 		return "redirect_scheme_downgrade"
-	case DenyPlaintextHttpDenied:
+	case DenyPlaintextHTTPDenied:
 		return "plaintext_http_denied"
-	case DenyUrlRuleDenied:
+	case DenyURLRuleDenied:
 		return "url_rule_denied"
-	case DenyUrlRuleNotInAllowList:
+	case DenyURLRuleNotInAllowList:
 		return "url_rule_not_in_allow_list"
 	}
 	return fmt.Sprintf("DenyKind(%d)", uint8(k))

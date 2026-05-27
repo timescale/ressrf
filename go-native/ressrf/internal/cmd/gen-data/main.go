@@ -73,10 +73,10 @@ var tierOrder = []struct {
 	tierConstant string
 	tierValue    engine.DataTier
 }{
-	{"iana_ipv4", "ianaIPv4Deny", "TierIana", engine.TierIana},
-	{"iana_ipv6", "ianaIPv6Deny", "TierIana", engine.TierIana},
+	{"iana_ipv4", "ianaIPv4Deny", "TierIANA", engine.TierIANA},
+	{"iana_ipv6", "ianaIPv6Deny", "TierIANA", engine.TierIANA},
 	{"override", "overrideDeny", "TierOverride", engine.TierOverride},
-	{"csp_metadata", "cspMetadataDeny", "TierCspMetadata", engine.TierCspMetadata},
+	{"csp_metadata", "cspMetadataDeny", "TierCSPMetadata", engine.TierCSPMetadata},
 }
 
 func generateIPRanges(configDir, outDir string) error {
@@ -149,9 +149,9 @@ var cloudProviders = []struct {
 	constant string // CloudProvider constant in cloud.go
 	tier     string // engine.DataTier identifier
 }{
-	{"aws", "CloudAWS", "TierCloudAws"},
+	{"aws", "CloudAWS", "TierCloudAWS"},
 	{"azure", "CloudAzure", "TierCloudAzure"},
-	{"gcp", "CloudGCP", "TierCloudGcp"},
+	{"gcp", "CloudGCP", "TierCloudGCP"},
 }
 
 func generateCloud(configDir, outDir string) error {

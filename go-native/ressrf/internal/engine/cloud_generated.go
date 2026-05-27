@@ -21,7 +21,7 @@ var cloudConfigs = map[CloudProvider]cloudConfig{
 		serviceSuffixes: []string{
 			".amazonaws.com",
 		},
-		tier: TierCloudAws,
+		tier: TierCloudAWS,
 	},
 	CloudAzure: {
 		denyRanges: []string{
@@ -58,6 +58,6 @@ var cloudConfigs = map[CloudProvider]cloudConfig{
 			".googleapis.com",
 			".run.app",
 		},
-		tier: TierCloudGcp,
+		tier: TierCloudGCP,
 	},
 }

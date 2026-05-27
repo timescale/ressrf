@@ -23,12 +23,12 @@ type DenyReason interface {
 
 // --- URL / scheme variants ---------------------------------------------------
 
-// UrlParseError signals the URL string could not be parsed into components.
-type UrlParseError struct{ Detail string }
+// URLParseError signals the URL string could not be parsed into components.
+type URLParseError struct{ Detail string }
 
-func (e *UrlParseError) Error() string { return "URL parse error: " + e.Detail }
-func (*UrlParseError) Kind() DenyKind  { return DenyUrlParseError }
-func (*UrlParseError) isDenyReason()   {}
+func (e *URLParseError) Error() string { return "URL parse error: " + e.Detail }
+func (*URLParseError) Kind() DenyKind  { return DenyURLParseError }
+func (*URLParseError) isDenyReason()   {}
 
 // SchemeNotAllowed signals the URL's scheme is outside the allow-list.
 type SchemeNotAllowed struct{ Scheme string }
@@ -51,7 +51,7 @@ type BareIPDeniedBeforeScheme struct{ Host string }
 func (e *BareIPDeniedBeforeScheme) Error() string {
 	return "bare IP denied before scheme check: " + e.Host
 }
-func (*BareIPDeniedBeforeScheme) Kind() DenyKind { return DenyBareIpDeniedBeforeScheme }
+func (*BareIPDeniedBeforeScheme) Kind() DenyKind { return DenyBareIPDeniedBeforeScheme }
 func (*BareIPDeniedBeforeScheme) isDenyReason()  {}
 
 // HostnameInvalid signals the host failed a structural check (control bytes,
@@ -72,7 +72,7 @@ type AmbiguousIPEncoding struct {
 func (e *AmbiguousIPEncoding) Error() string {
 	return fmt.Sprintf("ambiguous IP encoding (%s) not allowed: %s", e.Form, e.Host)
 }
-func (*AmbiguousIPEncoding) Kind() DenyKind { return DenyAmbiguousIpEncoding }
+func (*AmbiguousIPEncoding) Kind() DenyKind { return DenyAmbiguousIPEncoding }
 func (*AmbiguousIPEncoding) isDenyReason()  {}
 
 // UserinfoBypassAttempt signals %40 or @ confusion in the URL authority.
@@ -105,18 +105,18 @@ func (*DomainSuffixDenied) isDenyReason()  {}
 
 // --- DNS / network variants --------------------------------------------------
 
-// DnsEmptyResponse signals the resolver returned no IPs for the host, or the
+// DNSEmptyResponse signals the resolver returned no IPs for the host, or the
 // IP list passed to IsNetworkAllowed was empty.
-type DnsEmptyResponse struct{ Host string }
+type DNSEmptyResponse struct{ Host string }
 
-func (e *DnsEmptyResponse) Error() string {
+func (e *DNSEmptyResponse) Error() string {
 	if e.Host == "" {
 		return "DNS returned empty"
 	}
 	return "DNS returned empty for " + e.Host
 }
-func (*DnsEmptyResponse) Kind() DenyKind { return DenyDnsEmptyResponse }
-func (*DnsEmptyResponse) isDenyReason()  {}
+func (*DNSEmptyResponse) Kind() DenyKind { return DenyDNSEmptyResponse }
+func (*DNSEmptyResponse) isDenyReason()  {}
 
 // InDenyCIDR signals an IP fell inside a CIDR range on the deny list.
 type InDenyCIDR struct {
@@ -127,7 +127,7 @@ type InDenyCIDR struct {
 func (e *InDenyCIDR) Error() string {
 	return fmt.Sprintf("IP in deny CIDR %s (source: %s)", e.CIDR, e.Source)
 }
-func (*InDenyCIDR) Kind() DenyKind { return DenyInDenyCidr }
+func (*InDenyCIDR) Kind() DenyKind { return DenyInDenyCIDR }
 func (*InDenyCIDR) isDenyReason()  {}
 
 // NotInAllowList signals an IP failed the InternalOnly preset's allow-list.
@@ -175,22 +175,22 @@ func (*RedirectSchemeDowngrade) isDenyReason()  {}
 type PlaintextHttpDenied struct{}
 
 func (*PlaintextHttpDenied) Error() string  { return "plaintext HTTP denied" }
-func (*PlaintextHttpDenied) Kind() DenyKind { return DenyPlaintextHttpDenied }
+func (*PlaintextHttpDenied) Kind() DenyKind { return DenyPlaintextHTTPDenied }
 func (*PlaintextHttpDenied) isDenyReason()  {}
 
 // --- URL rule variants -------------------------------------------------------
 
-// UrlRuleDenied signals a URL matched an explicit deny rule.
-type UrlRuleDenied struct{ URL string }
+// URLRuleDenied signals a URL matched an explicit deny rule.
+type URLRuleDenied struct{ URL string }
 
-func (e *UrlRuleDenied) Error() string { return "URL denied by rule: " + e.URL }
-func (*UrlRuleDenied) Kind() DenyKind  { return DenyUrlRuleDenied }
-func (*UrlRuleDenied) isDenyReason()   {}
+func (e *URLRuleDenied) Error() string { return "URL denied by rule: " + e.URL }
+func (*URLRuleDenied) Kind() DenyKind  { return DenyURLRuleDenied }
+func (*URLRuleDenied) isDenyReason()   {}
 
-// UrlRuleNotInAllowList signals an allow-list ruleset exists but the URL
+// URLRuleNotInAllowList signals an allow-list ruleset exists but the URL
 // matched no allow rule.
-type UrlRuleNotInAllowList struct{ URL string }
+type URLRuleNotInAllowList struct{ URL string }
 
-func (e *UrlRuleNotInAllowList) Error() string { return "URL not in allow list: " + e.URL }
-func (*UrlRuleNotInAllowList) Kind() DenyKind  { return DenyUrlRuleNotInAllowList }
-func (*UrlRuleNotInAllowList) isDenyReason()   {}
+func (e *URLRuleNotInAllowList) Error() string { return "URL not in allow list: " + e.URL }
+func (*URLRuleNotInAllowList) Kind() DenyKind  { return DenyURLRuleNotInAllowList }
+func (*URLRuleNotInAllowList) isDenyReason()   {}

@@ -1,15 +1,10 @@
 # ressrf (Go)
 
-Go package for SSRF prevention, implemented natively in Go. Zero CGO. The
-default IANA + cloud-metadata deny list is compiled in.
+Go package for SSRF prevention, implemented natively in Go. Zero CGO. The default IANA + cloud-metadata deny list is compiled in.
 
-The semantics mirror the Rust [`ressrf-core`](../../crates/ressrf-core/)
-engine (URI parsing blind-spots BS-1..BS-6, deny-first URL rules,
-allow-overrides-deny CIDR precedence, ambiguous-IP rejection); cross-language
-conformance is enforced by the JSON vectors under `../../tests/vectors/`.
+The semantics mirror the Rust [`ressrf-core`](../../crates/ressrf-core/) engine (URI parsing blind-spots BS-1..BS-6, deny-first URL rules, allow-overrides-deny CIDR precedence, ambiguous-IP rejection); cross-language conformance is enforced by the JSON vectors under `../../tests/vectors/`.
 
-See [`docs/how-it-works.html`](docs/how-it-works.html) for an end-to-end
-walkthrough from the JSON spec to a blocked SSRF attempt.
+See [`docs/how-it-works.md`](docs/how-it-works.md) for an end-to-end walkthrough from the JSON spec to a blocked SSRF attempt.
 
 ## Relationship to the sibling wazero binding
 
@@ -58,21 +53,12 @@ Production code cannot flip the bypass: the setter is gated on `testing.TB`.
 
 ## Differential fuzz vs the Rust oracle
 
-`internal/diff/` hosts a differential-fuzz harness that compares this
-native Go engine against the Rust `ressrf-core` compiled to WASM. Gated
-behind the `diffuzz` build tag so wazero and the `.wasm` artifact stay
-out of the default build path.
+`internal/diff/` hosts a differential-fuzz harness that compares this native Go engine against the Rust `ressrf-core` compiled to WASM. Gated behind the `diffuzz` build tag so wazero and the `.wasm` artifact stay out of the default build path.
 
 ```bash
 make fuzz-rust          # fuzzes for 5m (override with FUZZ_RUST_DURATION=30s)
 ```
 
-The oracle WASM is the sibling [wazero binding's](../../go/ressrf/)
-checked-in `core.wasm` — same artifact `wazero` loads in production,
-post-processed by `wasm-opt -Oz` + `wasm-tools strip`. No clone, no
-cargo step; the harness picks the file up via `runtime.Caller`.
+The oracle WASM is the sibling [wazero binding's](../../go/ressrf/) checked-in `core.wasm` — same artifact `wazero` loads in production, post-processed by `wasm-opt -Oz` + `wasm-tools strip`. No clone, no cargo step; the harness picks the file up via `runtime.Caller`.
 
-The harness compares the boolean allow/block decision under
-`PresetExternalOnly`. Reason taxonomy is not compared because
-cross-language reason strings drift cosmetically; the security-relevant
-signal is the binary outcome.
+The harness compares the boolean allow/block decision under `PresetExternalOnly`. Reason taxonomy is not compared because cross-language reason strings drift cosmetically; the security-relevant signal is the binary outcome.

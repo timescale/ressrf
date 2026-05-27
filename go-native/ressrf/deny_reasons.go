@@ -27,33 +27,33 @@ type DataTier = engine.DataTier
 
 // Re-export the categorical DenyKind constants for switch convenience.
 const (
-	DenyURLParseError            = engine.DenyUrlParseError
+	DenyURLParseError            = engine.DenyURLParseError
 	DenySchemeNotAllowed         = engine.DenySchemeNotAllowed
 	DenySchemeRequired           = engine.DenySchemeRequired
-	DenyBareIPDeniedBeforeScheme = engine.DenyBareIpDeniedBeforeScheme
+	DenyBareIPDeniedBeforeScheme = engine.DenyBareIPDeniedBeforeScheme
 	DenyHostnameInvalid          = engine.DenyHostnameInvalid
-	DenyAmbiguousIPEncoding      = engine.DenyAmbiguousIpEncoding
+	DenyAmbiguousIPEncoding      = engine.DenyAmbiguousIPEncoding
 	DenyUserinfoBypassAttempt    = engine.DenyUserinfoBypassAttempt
 	DenyDomainNotInAllowList     = engine.DenyDomainNotInAllowList
 	DenyDomainSuffixDenied       = engine.DenyDomainSuffixDenied
-	DenyDNSEmptyResponse         = engine.DenyDnsEmptyResponse
-	DenyInDenyCIDR               = engine.DenyInDenyCidr
+	DenyDNSEmptyResponse         = engine.DenyDNSEmptyResponse
+	DenyInDenyCIDR               = engine.DenyInDenyCIDR
 	DenyNotInAllowList           = engine.DenyNotInAllowList
 	DenyMultiHostFallbackDenied  = engine.DenyMultiHostFallbackDenied
 	DenyRedirectSchemeDowngrade  = engine.DenyRedirectSchemeDowngrade
-	DenyPlaintextHTTPDenied      = engine.DenyPlaintextHttpDenied
-	DenyURLRuleDenied            = engine.DenyUrlRuleDenied
-	DenyURLRuleNotInAllowList    = engine.DenyUrlRuleNotInAllowList
+	DenyPlaintextHTTPDenied      = engine.DenyPlaintextHTTPDenied
+	DenyURLRuleDenied            = engine.DenyURLRuleDenied
+	DenyURLRuleNotInAllowList    = engine.DenyURLRuleNotInAllowList
 )
 
 // DataTier values, in case a caller wants to compare InDenyCIDR.Source.
 const (
-	TierIANA         = engine.TierIana
+	TierIANA         = engine.TierIANA
 	TierOverride     = engine.TierOverride
-	TierCSPMetadata  = engine.TierCspMetadata
-	TierCloudAWS     = engine.TierCloudAws
+	TierCSPMetadata  = engine.TierCSPMetadata
+	TierCloudAWS     = engine.TierCloudAWS
 	TierCloudAzure   = engine.TierCloudAzure
-	TierCloudGCP     = engine.TierCloudGcp
+	TierCloudGCP     = engine.TierCloudGCP
 	TierDomainSuffix = engine.TierDomainSuffix
 	TierUserDeny     = engine.TierUserDeny
 	TierUserAllow    = engine.TierUserAllow
@@ -65,7 +65,7 @@ const (
 //
 //revive:disable:exported
 type (
-	URLParseError            = engine.UrlParseError
+	URLParseError            = engine.URLParseError
 	SchemeNotAllowed         = engine.SchemeNotAllowed
 	SchemeRequired           = engine.SchemeRequired
 	BareIPDeniedBeforeScheme = engine.BareIPDeniedBeforeScheme
@@ -74,14 +74,14 @@ type (
 	UserinfoBypassAttempt    = engine.UserinfoBypassAttempt
 	DomainNotInAllowList     = engine.DomainNotInAllowList
 	DomainSuffixDenied       = engine.DomainSuffixDenied
-	DNSEmptyResponse         = engine.DnsEmptyResponse
+	DNSEmptyResponse         = engine.DNSEmptyResponse
 	InDenyCIDR               = engine.InDenyCIDR
 	NotInAllowList           = engine.NotInAllowList
 	MultiHostFallbackDenied  = engine.MultiHostFallbackDenied
 	RedirectSchemeDowngrade  = engine.RedirectSchemeDowngrade
 	PlaintextHTTPDenied      = engine.PlaintextHttpDenied
-	URLRuleDenied            = engine.UrlRuleDenied
-	URLRuleNotInAllowList    = engine.UrlRuleNotInAllowList
+	URLRuleDenied            = engine.URLRuleDenied
+	URLRuleNotInAllowList    = engine.URLRuleNotInAllowList
 )
 
 //revive:enable:exported

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/timescale/ressrf/go-native/ressrf"
+	"github.com/timescale/ressrf/go-native/ressrf/ressrftest"
 	"github.com/timescale/ressrf/go-native/ressrf/tcpx"
 )
 
@@ -47,7 +48,7 @@ func TestSafeDialerBlocksLinkLocal(t *testing.T) {
 
 func TestDialContextRespectsDisableForTests(t *testing.T) {
 	p := buildExternalPolicy(t)
-	ressrf.DisableForTests(t)
+	ressrftest.DisableForTests(t)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

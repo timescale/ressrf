@@ -78,7 +78,7 @@ func (v *URIValidator) validateURL(rawURL string, policy *Policy) DenyReason {
 	// 3. Trailing dot strip.
 	hostNormalized := strings.TrimRight(parts.host, ".")
 	if hostNormalized == "" {
-		return &UrlParseError{Detail: "empty host after stripping trailing dot"}
+		return &URLParseError{Detail: "empty host after stripping trailing dot"}
 	}
 
 	// 4. Ambiguous IP encoding.
@@ -93,7 +93,7 @@ func (v *URIValidator) validateURL(rawURL string, policy *Policy) DenyReason {
 	if IsIPLiteral(hostNormalized) && policy != nil {
 		ip, perr := parseHostAsIP(hostNormalized)
 		if perr != nil {
-			return &UrlParseError{Detail: perr.Error()}
+			return &URLParseError{Detail: perr.Error()}
 		}
 		if inner := policy.isNetworkAllowedIPs([]netip.Addr{ip}); inner != nil {
 			switch inner.(type) {
@@ -153,11 +153,11 @@ type urlParts struct {
 
 func parseURLParts(url string) (urlParts, DenyReason) {
 	if url == "" {
-		return urlParts{}, &UrlParseError{Detail: "empty URL"}
+		return urlParts{}, &URLParseError{Detail: "empty URL"}
 	}
 	// BS-6: reject UNC-style \\host\share.
 	if strings.HasPrefix(url, "\\\\") {
-		return urlParts{}, &UrlParseError{Detail: "UNC-style path not allowed"}
+		return urlParts{}, &URLParseError{Detail: "UNC-style path not allowed"}
 	}
 	// BS-3: reject NUL/CR/LF early so we don't accidentally let them through.
 	if hasProhibitedControl(url) {
@@ -207,7 +207,7 @@ func parseURLParts(url string) (urlParts, DenyReason) {
 	}
 
 	if host == "" {
-		return urlParts{}, &UrlParseError{Detail: "empty host"}
+		return urlParts{}, &URLParseError{Detail: "empty host"}
 	}
 
 	if hostHasProhibitedChars(host) {

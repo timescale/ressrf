@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/timescale/ressrf/go-native/ressrf/internal/testvectors"
+	"github.com/timescale/ressrf/go-native/ressrf/ressrftest"
 )
 
 // asCloudProviders converts vector-loaded JSON string names into the typed
@@ -740,7 +741,7 @@ func presetFrom(s string) Preset {
 }
 
 func TestDisableForTests(t *testing.T) {
-	DisableForTests(t)
+	ressrftest.DisableForTests(t)
 	ctx := context.Background()
 	policy, err := NewPolicy(PresetExternalOnly)
 	if err != nil {

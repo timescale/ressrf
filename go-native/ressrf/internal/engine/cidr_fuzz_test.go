@@ -37,8 +37,8 @@ func FuzzParseCIDR(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, s string) {
-		c1, err1 := ParseCIDR(s, TierIana)
-		c2, err2 := ParseCIDR(s, TierIana)
+		c1, err1 := ParseCIDR(s, TierIANA)
+		c2, err2 := ParseCIDR(s, TierIANA)
 		if (err1 == nil) != (err2 == nil) {
 			t.Fatalf("non-deterministic parse: %v vs %v", err1, err2)
 		}

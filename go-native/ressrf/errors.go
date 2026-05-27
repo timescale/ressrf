@@ -2,8 +2,8 @@ package ressrf
 
 import (
 	"errors"
-	"sync/atomic"
-	"testing"
+
+	"github.com/timescale/ressrf/go-native/ressrf/internal/testbypass"
 )
 
 // ErrBlocked is returned whenever a request is denied by the SSRF policy.
@@ -77,26 +77,12 @@ func (e *BlockedError) Unwrap() error {
 	return ErrBlocked
 }
 
-// bypassed reports whether SSRF protection has been disabled by a current
-// test via DisableForTests. Hidden from the public API: production code
-// must not have a way to toggle the engine off.
-var testBypass atomic.Bool
-
 // Bypassed reports whether SSRF protection is currently disabled by a test
-// via DisableForTests. Adapters in httpx / tcpx / sshx call this for the
-// early-return shortcut; production code outside this package has no way to
-// flip the flag because the setter is gated on testing.TB.
-func Bypassed() bool { return testBypass.Load() }
+// via ressrftest.DisableForTests. Adapters in httpx / tcpx / sshx call this
+// for the early-return shortcut; production code outside this package has
+// no way to flip the flag because the setter lives in the ressrftest
+// subpackage and is gated on testing.TB.
+func Bypassed() bool { return testbypass.Flag.Load() }
 
 // bypassed is the package-internal alias kept for hot-path call sites.
-var bypassed = testBypass.Load
-
-// DisableForTests disables SSRF protection for the duration of a test.
-// It automatically re-enables protection when the test completes. This is
-// the only way to bypass the engine and is intentionally gated on
-// testing.TB so it can never be called from non-test code.
-func DisableForTests(t testing.TB) {
-	t.Helper()
-	testBypass.Store(true)
-	t.Cleanup(func() { testBypass.Store(false) })
-}
+var bypassed = testbypass.Flag.Load

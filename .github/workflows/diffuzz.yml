@@ -11,8 +11,8 @@ name: Diff-Fuzz (Go native vs WASM oracle)
 #   - weekly Monday 04:00 UTC (one hour after the cargo-fuzz job)
 #   - manual workflow_dispatch
 #
-# Marked continue-on-error: divergence findings are informational
-# signal, not blocking. Triage happens out-of-band.
+# Divergence findings fail the job: a fresh parser divergence
+# blocks the merge that introduced it.
 
 on:
   schedule:
@@ -40,7 +40,6 @@ jobs:
   diffuzz:
     name: Native Go vs WASM oracle
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
     steps:

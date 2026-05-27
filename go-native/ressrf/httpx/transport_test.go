@@ -8,6 +8,7 @@ import (
 
 	"github.com/timescale/ressrf/go-native/ressrf"
 	"github.com/timescale/ressrf/go-native/ressrf/httpx"
+	"github.com/timescale/ressrf/go-native/ressrf/ressrftest"
 )
 
 func buildExternalPolicy(t *testing.T) *ressrf.Policy {
@@ -96,7 +97,7 @@ func TestHTTPTransportAllowsPublicServer(t *testing.T) {
 	defer server.Close()
 
 	p := buildExternalPolicy(t)
-	ressrf.DisableForTests(t)
+	ressrftest.DisableForTests(t)
 
 	client := httpx.Client(p)
 	resp, err := client.Get(server.URL + "/ok")
@@ -145,7 +146,7 @@ func TestHTTPClientTooManyRedirects(t *testing.T) {
 	defer server.Close()
 
 	p := buildExternalPolicy(t)
-	ressrf.DisableForTests(t)
+	ressrftest.DisableForTests(t)
 
 	client := &http.Client{
 		Transport: httpx.Transport(p),

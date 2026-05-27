@@ -57,14 +57,7 @@ ressrf (pronounced "resurf") validates network destinations against configurable
 └─────────┘ └──────────┘      └──────────────┘
 ```
 
-Go additionally ships a native port at [`go-native/ressrf/`](go-native/ressrf/)
-that reimplements the engine in pure Go (`net/netip` + `regexp`). It
-consumes the same `tests/vectors/` conformance contract and stays in
-lockstep with `ressrf-core` via a differential-fuzz harness that
-compares every random URL against the WASM oracle. No WASM runtime,
-no embedded `.wasm`, no Rust toolchain in the build pipeline — useful
-for Go shops that prefer native debuggability (`pprof`, `delve`) and
-contribution flow (no Rust toolchain in PRs).
+Go additionally ships a native port at [`go-native/ressrf/`](go-native/ressrf/) that reimplements the engine in pure Go (`net/netip` + `regexp`). It consumes the same `tests/vectors/` conformance contract and stays in lockstep with `ressrf-core` via a differential-fuzz harness that compares every random URL against the WASM oracle. No WASM runtime, no embedded `.wasm`, no Rust toolchain in the build pipeline — useful for Go shops that prefer native debuggability (`pprof`, `delve`) and contribution flow (no Rust toolchain in PRs).
 
 ## Quick Start
 

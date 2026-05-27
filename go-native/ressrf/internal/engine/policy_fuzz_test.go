@@ -50,11 +50,11 @@ func FuzzPolicy(f *testing.F) {
 			t.Fatalf("PresetNone denied %v: %v", addrs, r1)
 		}
 
-		// Empty IP list must produce a DnsEmptyResponse reason.
+		// Empty IP list must produce a DNSEmptyResponse reason.
 		if len(addrs) == 0 {
-			var reason *DnsEmptyResponse
+			var reason *DNSEmptyResponse
 			if !errors.As(r1, &reason) {
-				t.Fatalf("empty IPs should yield DnsEmptyResponse, got %v", r1)
+				t.Fatalf("empty IPs should yield DNSEmptyResponse, got %v", r1)
 			}
 		}
 

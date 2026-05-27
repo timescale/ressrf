@@ -33,7 +33,7 @@ func TestIPv4IPv6MappingVectors(t *testing.T) {
 
 	for _, tc := range vectors.Cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			cidr, err := ParseCIDR(tc.CIDR, TierIana)
+			cidr, err := ParseCIDR(tc.CIDR, TierIANA)
 			if err != nil {
 				t.Fatalf("parse cidr %q: %v", tc.CIDR, err)
 			}

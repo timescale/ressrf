@@ -3,6 +3,7 @@ package ressrf
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -391,14 +392,14 @@ func (p *Policy) IsNetworkAllowedAddrs(_ context.Context, addrs []netip.Addr) er
 }
 
 // toBlockedError converts an engine error into a *BlockedError. If err
-// implements DenyReason it becomes the typed Reason; otherwise we fall
-// back to Detail so callers still receive a *BlockedError and errors.Is
-// against ErrBlocked continues to hold. The unchecked assertion that
-// lived inline before would panic if a future engine change wrapped the
-// rejection (e.g. fmt.Errorf("...%w...")) or returned an adapter error,
-// crashing every API entry point.
+// resolves to a DenyReason via errors.As (covering both bare and
+// fmt.Errorf("...%w...")-wrapped engine rejections), the typed reason is
+// preserved so callers can type-switch on BlockedError.Reason. Otherwise
+// we fall back to Detail so callers still receive a *BlockedError and
+// errors.Is against ErrBlocked continues to hold.
 func toBlockedError(err error, url, host string) *BlockedError {
-	if reason, ok := err.(DenyReason); ok {
+	var reason DenyReason
+	if errors.As(err, &reason) {
 		return &BlockedError{Reason: reason, URL: url, Host: host}
 	}
 	return &BlockedError{Detail: err.Error(), URL: url, Host: host}

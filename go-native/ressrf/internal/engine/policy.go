@@ -207,7 +207,7 @@ func (p *Policy) Preset() Preset { return p.preset }
 // Emits a HostValidated audit event on every call (if a sink is attached).
 func (p *Policy) IsNetworkAllowed(ips []netip.Addr) error {
 	if len(ips) == 0 {
-		reason := &DnsEmptyResponse{}
+		reason := &DNSEmptyResponse{}
 		p.emitHostValidated(ips, reason)
 		return reason
 	}
@@ -280,7 +280,7 @@ func (p *Policy) isRequestAllowed(url string) DenyReason {
 	if !p.ruleset.IsEmpty() {
 		switch p.ruleset.Evaluate(url) {
 		case URLDenied:
-			return &UrlRuleDenied{URL: url}
+			return &URLRuleDenied{URL: url}
 		case URLAllowedBypassIP:
 			return nil
 		case URLAllowed, URLNoMatch:
