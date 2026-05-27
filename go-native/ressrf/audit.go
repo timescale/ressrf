@@ -1,4 +1,3 @@
-// Package ressrf provides SSRF protection backed by a WASM policy engine.
 package ressrf
 
 import (
