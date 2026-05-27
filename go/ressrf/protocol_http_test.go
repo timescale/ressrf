@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/timescale/ressrf/go/ressrf/ressrftest"
 )
 
 func TestHTTPTransportBlocksPrivateIP(t *testing.T) {
@@ -92,7 +94,7 @@ func TestHTTPTransportAllowsPublicServer(t *testing.T) {
 	p := buildExternalPolicy(t)
 	defer func() { _ = p.Close(context.Background()) }()
 
-	DisableForTests(t)
+	ressrftest.DisableForTests(t)
 
 	client := p.HTTPClient(nil)
 	resp, err := client.Get(server.URL + "/ok")
@@ -114,7 +116,7 @@ func TestHTTPClientTooManyRedirects(t *testing.T) {
 	p := buildExternalPolicy(t)
 	defer func() { _ = p.Close(context.Background()) }()
 
-	DisableForTests(t)
+	ressrftest.DisableForTests(t)
 
 	client := &http.Client{
 		Transport: p.HTTPTransport(nil),

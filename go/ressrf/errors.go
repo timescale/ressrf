@@ -2,8 +2,8 @@ package ressrf
 
 import (
 	"errors"
-	"sync/atomic"
-	"testing"
+
+	"github.com/timescale/ressrf/go/ressrf/internal/testbypass"
 )
 
 // ErrBlocked is returned whenever a request is denied by the SSRF policy.
@@ -34,17 +34,10 @@ func (e *BlockedError) Unwrap() error {
 	return ErrBlocked
 }
 
-var disabled atomic.Bool
-
 // Disabled returns true when SSRF protection is disabled (for testing).
+// Production code outside this package has no way to flip the flag
+// because the setter lives in the ressrftest subpackage and is gated
+// on testing.TB.
 func Disabled() bool {
-	return disabled.Load()
-}
-
-// DisableForTests disables SSRF protection for the duration of a test.
-// It automatically re-enables protection when the test completes.
-func DisableForTests(t testing.TB) {
-	t.Helper()
-	disabled.Store(true)
-	t.Cleanup(func() { disabled.Store(false) })
+	return testbypass.Flag.Load()
 }
