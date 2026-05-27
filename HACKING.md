@@ -286,6 +286,26 @@ Update the root README, `crates/ressrf-core/README.md`, and any language-specifi
 
 ## Adding a new programming language binding
 
+### WASM bridge or native port?
+
+Before writing any code, decide which runtime the new binding will use. Both are first-class, and for a given ecosystem they can co-exist: Go already does, with `go/ressrf/` and `go-native/ressrf/` shipping side by side.
+
+A **WASM bridge** embeds `core.wasm` and calls into the Rust core via the host language's WASM runtime. The behavioral guarantee is the strongest possible: the same bytes the Rust crate runs are what the binding runs. The cost is a per-call JSON marshalling layer, a runtime-specific WASM loader, debugger boundaries that don't cross WASM, and the toolchain weight of cross-compiling to `wasm32-wasip1`. Idiomatic-API friction shows up as forced `Close()` lifecycles, opaque string errors, and host-imported audit callbacks.
+
+A **native port** reimplements the engine in the host language against the shared JSON conformance vectors and configuration. The host gets idiomatic types (sealed-sum errors, native errors instead of strings, no lifecycle ceremony), native debuggability (`pprof`, `delve`, source maps work through the whole stack), zero WASM runtime weight, and the ability for ecosystem contributors to send fixes without learning Rust. The cost is one rewrite per language plus a contract that keeps the port aligned with the Rust core.
+
+That contract has three parts and is the reason native ports stay safe to ship:
+
+1. **Shared JSON config** in [`crates/ressrf-core/config/`](crates/ressrf-core/config/). Native ports read these files directly and codegen language-specific data modules from them; a drift check in CI fails the build if the generated outputs are stale (`generated-up-to-date` job).
+2. **Shared JSON vectors** in [`tests/vectors/`](tests/vectors/). Every binding (WASM or native) loads them and fails its own test job on divergence.
+3. **Differential fuzz against the WASM oracle.** The `ressrf-wasm` crate is `publish = false`; it is intentionally not a shipped binding. Native ports load the wazero binding's embedded `core.wasm` (or any byte-identical build output of `ressrf-wasm`) and compare random URLs through both engines. Allow/block divergence fails CI. The reference implementation lives at [`go-native/ressrf/internal/diff/`](go-native/ressrf/internal/diff/).
+
+Picking criteria for a new binding:
+
+- **Native preferred** when the host ecosystem rewards source-only distribution, has the stdlib primitives the engine needs (IP parsing, IDN, regex), and has users for whom debuggability or edge/serverless cold start matters. Today that is Go (`go-native/ressrf/`), Python (PyO3 native, by a different mechanism), and the planned Node TypeScript port at `node-native/ressrf/`.
+- **WASM acceptable** when the host ecosystem has solid WASM tooling, the user base is smaller, and shipping a single binding now is more valuable than the eventual idiomatic-API refinement. Today that is the planned .NET, Java, and PHP bindings.
+- **Both** when the ecosystem has consumers on either side of the trade-off (security-strict consumers wanting Rust-engine parity vs idiomatic-API consumers wanting native debuggability). Go is the case study. Node will follow.
+
 There are two integration paths:
 
 ### WASM-based bindings (Go, Node.js, PHP, C#, Java)
