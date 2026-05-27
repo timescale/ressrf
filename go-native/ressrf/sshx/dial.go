@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/timescale/ressrf/go-native/ressrf"
@@ -29,7 +30,11 @@ func Dial(ctx context.Context, p *ressrf.Policy, addr string, config *ssh.Client
 
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		host = addr
+		// SplitHostPort failed; either there is no port or addr is a
+		// bracketed IPv6 literal missing a port (e.g. "[::1]"). Strip
+		// any enclosing brackets so the JoinHostPort call below does
+		// not double-bracket and produce an unparseable address.
+		host = strings.TrimSuffix(strings.TrimPrefix(addr, "["), "]")
 		port = "22"
 	}
 

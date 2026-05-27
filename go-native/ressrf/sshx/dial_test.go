@@ -61,3 +61,19 @@ func TestSSHDialDefaultPort(t *testing.T) {
 		t.Fatalf("expected ErrBlocked, got: %v", err)
 	}
 }
+
+// TestSSHDialBracketedIPv6WithoutPort regresses the case where
+// net.SplitHostPort fails on a bracketed IPv6 literal missing the
+// port, and the fallback used to set host=addr literally. Combined
+// with net.JoinHostPort that produced "[[::1]]:22" — doubly-bracketed
+// and unparseable. The fix strips enclosing brackets so the policy
+// check sees the bare IP and ErrBlocked surfaces cleanly.
+func TestSSHDialBracketedIPv6WithoutPort(t *testing.T) {
+	p := buildExternalPolicy(t)
+	config := &ssh.ClientConfig{Timeout: 1 * time.Second}
+	if _, err := sshx.Dial(context.Background(), p, "[::1]", config); err == nil {
+		t.Fatal("expected blocked error for bracketed IPv6 loopback without port")
+	} else if !errors.Is(err, ressrf.ErrBlocked) {
+		t.Fatalf("expected ErrBlocked (not a parser-malformed-address error), got: %v", err)
+	}
+}
