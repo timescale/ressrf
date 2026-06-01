@@ -20,7 +20,7 @@ std = ["prefix-trie", "ipnet", "regex"]
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-prefix-trie = { version = "0.8", optional = true }
+prefix-trie = { version = "0.9", optional = true }
 ipnet = { version = "2", optional = true }
 regex = { version = "1", optional = true }
 
