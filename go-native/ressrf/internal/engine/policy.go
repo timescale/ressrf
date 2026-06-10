@@ -200,6 +200,26 @@ func (b *PolicyBuilder) Build() (*Policy, error) {
 // Preset returns the preset this policy was built with.
 func (p *Policy) Preset() Preset { return p.preset }
 
+// DenyPrefixes returns the IP CIDR ranges this policy blocks at the network
+// layer, in native form (IPv4 ranges as Is4 prefixes). For PresetExternalOnly
+// this is the built-in default deny set followed by any cloud-provider and
+// user-supplied deny CIDRs, in insertion order. PresetNone and
+// PresetInternalOnly have no network-layer deny set and return nil.
+//
+// The allow set is NOT subtracted: allow overrides deny at match time (see
+// isNetworkAllowedIPs), so a caller that added allow CIDRs and needs the
+// effective blocked set must account for them itself.
+func (p *Policy) DenyPrefixes() []netip.Prefix {
+	if p.denySet.IsEmpty() {
+		return nil
+	}
+	out := make([]netip.Prefix, 0, p.denySet.Len())
+	for _, c := range p.denySet.Ranges {
+		out = append(out, c.NativePrefix())
+	}
+	return out
+}
+
 // IsNetworkAllowed validates that every IP in the list is permitted. Returns
 // nil on success or a DenyReason (which implements error) on rejection.
 // Behaviour matches crates/ressrf-core/src/policy.rs::is_network_allowed.

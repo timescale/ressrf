@@ -358,6 +358,22 @@ func (p *Policy) IsAllowed(_ context.Context, url string) error {
 	return nil
 }
 
+// DeniedIPPrefixes returns the IP CIDR ranges this policy blocks at the network
+// layer, in native form (IPv4 prefixes are Is4, not IPv4-mapped). For
+// PresetExternalOnly this is the built-in default deny set plus any
+// WithCloudProviderDenies and WithDeniedCIDRs entries; PresetNone and
+// PresetInternalOnly return nil (they have no network-layer deny set).
+//
+// This exposes the same ranges IsNetworkAllowed enforces, so a caller that must
+// mirror the gate at another layer — e.g. rendering a Kubernetes NetworkPolicy
+// egress except-list — can derive it from the policy instead of hand-maintaining
+// a parallel CIDR list that silently drifts. Bucket by family with
+// Addr().Is4(); String() yields the canonical CIDR text (e.g. "10.0.0.0/8",
+// "fc00::/7"). The allow set is not subtracted; see WithAllowedCIDRs.
+func (p *Policy) DeniedIPPrefixes() []netip.Prefix {
+	return p.core.DenyPrefixes()
+}
+
 // IsNetworkAllowed checks whether a set of IPs is permitted by the policy.
 // This is the lower-level IP check (no URL parsing/scheme validation).
 func (p *Policy) IsNetworkAllowed(_ context.Context, ips []string) error {
