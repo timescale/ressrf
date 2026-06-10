@@ -83,6 +83,20 @@ func (c CIDR) Contains(addr netip.Addr) bool {
 	return c.Prefix.Contains(netip.AddrFrom16(addr.As16()))
 }
 
+// NativePrefix returns the prefix in native form: an IPv4 range is returned as
+// a 4-byte (Is4) prefix rather than the IPv4-mapped IPv6 form the matcher
+// stores internally (a.b.c.d/n instead of ::ffff:a.b.c.d/(n+96)). IPv6 ranges
+// are returned unchanged. Use this when handing the range to code that expects
+// human / family-native CIDRs, e.g. rendering a Kubernetes NetworkPolicy
+// except-list.
+func (c CIDR) NativePrefix() netip.Prefix {
+	addr := c.Prefix.Addr()
+	if addr.Is4In6() {
+		return netip.PrefixFrom(addr.Unmap(), c.Prefix.Bits()-96)
+	}
+	return c.Prefix
+}
+
 // CIDRSet is a flat collection of CIDRs scanned in insertion order. The Rust
 // core uses the same linear scan; for ~30 entries it outperforms tree
 // structures because of cache locality.
