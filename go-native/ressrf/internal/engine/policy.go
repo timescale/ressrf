@@ -202,8 +202,8 @@ func (p *Policy) Preset() Preset { return p.preset }
 
 // DenyPrefixes returns the IP CIDR ranges this policy blocks at the network
 // layer, in native form (IPv4 ranges as Is4 prefixes). For PresetExternalOnly
-// this is the built-in default deny set followed by any cloud-provider and
-// user-supplied deny CIDRs, in insertion order. PresetNone and
+// this is the built-in default deny set plus any cloud-provider and
+// user-supplied deny CIDRs, de-duplicated in first-seen order. PresetNone and
 // PresetInternalOnly have no network-layer deny set and return nil.
 //
 // The allow set is NOT subtracted: allow overrides deny at match time (see
@@ -213,9 +213,18 @@ func (p *Policy) DenyPrefixes() []netip.Prefix {
 	if p.denySet.IsEmpty() {
 		return nil
 	}
+	// A metadata IP can appear in both the built-in deny set and a
+	// cloud-provider module; de-duplicate so a derived network-layer block
+	// list (e.g. a Kubernetes NetworkPolicy except-list) stays minimal.
 	out := make([]netip.Prefix, 0, p.denySet.Len())
+	seen := make(map[netip.Prefix]struct{}, p.denySet.Len())
 	for _, c := range p.denySet.Ranges {
-		out = append(out, c.NativePrefix())
+		np := c.NativePrefix()
+		if _, dup := seen[np]; dup {
+			continue
+		}
+		seen[np] = struct{}{}
+		out = append(out, np)
 	}
 	return out
 }

@@ -34,6 +34,17 @@ func TestDeniedIPPrefixes(t *testing.T) {
 		}
 	}
 
+	// No duplicates: a metadata IP present in both the built-in deny set and a
+	// cloud-provider module must appear once, so a derived NetworkPolicy
+	// except-list stays minimal.
+	seen := make(map[string]bool, len(got))
+	for _, s := range got {
+		if seen[s] {
+			t.Errorf("duplicate prefix %s in deny set: %v", s, got)
+		}
+		seen[s] = true
+	}
+
 	// The exported list must agree with what the gate actually enforces: the
 	// network address of every returned range is denied by IsNetworkAllowed, and
 	// a public address is allowed. This invariant is what lets a consumer mirror
