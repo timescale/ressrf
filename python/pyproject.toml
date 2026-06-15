@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.13.1,<2.0"]
+requires = ["maturin>=1.13.3,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -28,10 +28,10 @@ keywords = ["ssrf", "security", "network", "validation"]
 
 [project.optional-dependencies]
 httpx = ["httpx>=0.24"]
-requests = ["requests>=2.28"]
+requests = ["requests>=2.34.2"]
 ssh = ["paramiko>=3.0"]
-all = ["httpx>=0.24", "requests>=2.28", "paramiko>=3.0"]
-dev = ["pytest>=7", "pytest-asyncio>=0.21"]
+all = ["httpx>=0.24", "requests>=2.34.2", "paramiko>=3.0"]
+dev = ["pytest>=7", "pytest-asyncio>=1.4.0"]
 
 [project.urls]
 Repository = "https://github.com/timescale/ressrf"
