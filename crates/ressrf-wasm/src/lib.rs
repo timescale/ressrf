@@ -343,7 +343,15 @@ pub extern "C" fn ressrf_uri_in_domain(json_ptr: *const u8, json_len: u32) -> *m
 
 // --- Audit callback support ---
 
+// The host import module must match the module name the runtime registers the
+// callback under (wazero's `NewHostModuleBuilder("env")` on the Go side and the
+// `env` import object on the Node side). Declaring `wasm_import_module`
+// explicitly marks the symbol as a WebAssembly import so `wasm-ld` resolves it
+// as an allowed host import instead of erroring on an undefined symbol. Without
+// it, a stricter linker fails the WASM build with
+// `undefined symbol: ressrf_host_audit_event`.
 #[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "env")]
 extern "C" {
     /// Host-provided function called when an audit event is emitted.
     /// The guest writes a length-prefixed JSON string to linear memory and
