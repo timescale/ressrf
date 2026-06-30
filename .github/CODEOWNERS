@@ -1,0 +1,8 @@
+# Code owners for ressrf.
+# See https://docs.github.com/articles/about-code-owners for syntax.
+
+# Default owner for everything in the repo.
+* @mostafa
+
+# Go native library
+/go-native/ @gonzaloserrano @mostafa
