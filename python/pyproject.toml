@@ -1,12 +1,12 @@
 [build-system]
-requires = ["maturin>=1.13.1,<2.0"]
+requires = ["maturin>=1.14.0,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "ressrf"
 version = "0.1.0"
 description = "Multi-platform SSRF prevention library"
-readme = "../README.md"
+readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [{ name = "Mostafa Moradian", email = "mstfmoradian@gmail.com" }]
@@ -28,10 +28,10 @@ keywords = ["ssrf", "security", "network", "validation"]
 
 [project.optional-dependencies]
 httpx = ["httpx>=0.24"]
-requests = ["requests>=2.28"]
+requests = ["requests>=2.34.2"]
 ssh = ["paramiko>=3.0"]
-all = ["httpx>=0.24", "requests>=2.28", "paramiko>=3.0"]
-dev = ["pytest>=7", "pytest-asyncio>=0.21"]
+all = ["httpx>=0.24", "requests>=2.34.2", "paramiko>=3.0"]
+dev = ["pytest>=9.1.0", "pytest-asyncio>=1.4.0"]
 
 [project.urls]
 Repository = "https://github.com/timescale/ressrf"
