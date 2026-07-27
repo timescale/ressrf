@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.14.0,<2.0"]
+requires = ["maturin>=1.14.1,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -31,7 +31,7 @@ httpx = ["httpx>=0.24"]
 requests = ["requests>=2.34.2"]
 ssh = ["paramiko>=3.0"]
 all = ["httpx>=0.24", "requests>=2.34.2", "paramiko>=3.0"]
-dev = ["pytest>=9.1.0", "pytest-asyncio>=1.4.0"]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0"]
 
 [project.urls]
 Repository = "https://github.com/timescale/ressrf"
