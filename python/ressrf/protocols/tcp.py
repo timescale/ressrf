@@ -31,9 +31,9 @@ def safe_getaddrinfo(
     """
     results = socket.getaddrinfo(host, port, family, type_, proto, flags)
     if not results:
-        return results
+        return []
 
-    allowed = []
+    allowed: list[tuple[socket.AddressFamily, socket.SocketKind, int, str, tuple]] = []  # type: ignore[type-arg]
     for info in results:
         addr = info[4]
         ip = str(addr[0])

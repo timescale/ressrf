@@ -187,6 +187,7 @@ sink = AuditFunc(lambda e: logger.info("audit: %s %s", e.event_type, e.fields))
 
 # With structlog
 import structlog
+
 log = structlog.get_logger()
 sink = AuditFunc(lambda e: log.info("ressrf.audit", kind=e.event_type, **e.fields))
 
@@ -213,7 +214,7 @@ try:
     policy.validate_url("http://169.254.169.254/latest/meta-data/")
 except RessrfBlockedError as e:
     print(e.message)  # "blocked: IP in deny range..."
-    print(e.reason)   # {"type": "blocked", "ip": "169.254.169.254", ...}
+    print(e.reason)  # {"type": "blocked", "ip": "169.254.169.254", ...}
 ```
 
 The `reason` dict always contains a `"type"` key. Common types:
@@ -256,8 +257,8 @@ sock = create_connection(policy, ("db.example.com", 5432))
 # Check what gets blocked
 for url in [
     "http://169.254.169.254/latest/meta-data/",  # AWS IMDS
-    "http://metadata.google.internal/",           # GCP metadata
-    "http://10.0.0.1/admin",                      # private IP
+    "http://metadata.google.internal/",  # GCP metadata
+    "http://10.0.0.1/admin",  # private IP
 ]:
     try:
         policy.validate_url(url)
