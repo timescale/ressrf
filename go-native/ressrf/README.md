@@ -22,6 +22,7 @@ The workspace also ships a [wazero-backed Go binding](../../go/ressrf/) that run
 | Optional crypto dep | only `sshx` pulls `golang.org/x/crypto` | always imported |
 | Policy lifecycle | no `Close()` needed | `Build(ctx)` + `Policy.Close(ctx)` |
 | Domain-suffix surface | `WithDeniedDomainSuffixes` (additive deny); allow-list seed via `NewAllowListPolicy` constructor parameter; cloud-provider service suffixes available as data via `CloudServiceSuffixes(providers...)` | reachable only via cloud-provider modules, which bundle deny-and-trust |
+| `--` host labels | rejected by default; `WithDoubleDashHostsAllowed()` opts out (S3 Express directory buckets) | rejected, no opt-out |
 
 Cross-language conformance is preserved end to end: both bindings consume the same 8 JSON vector files at `../../tests/vectors/`, the BS-1..BS-6 URI validator, deny-first / allow-overrides-deny precedence, and the same cloud-provider and IANA deny ranges. The generator under `internal/cmd/gen-data` reads `../../crates/ressrf-core/config/*.json` so both the WASM-backed binding and this native port pick up upstream IP-range refreshes from a single source.
 

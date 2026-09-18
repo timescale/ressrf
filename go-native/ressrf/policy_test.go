@@ -752,3 +752,66 @@ func TestDisableForTests(t *testing.T) {
 		t.Errorf("expected allowed when disabled, got: %v", err)
 	}
 }
+
+// TestDoubleDashHosts pins the default rejection of "--" host labels and the
+// opt-out. The opt-out must not weaken any other check.
+func TestDoubleDashHosts(t *testing.T) {
+	const s3express = "https://mybucket--use1-az4--x-s3.s3express-use1-az4.us-east-1.amazonaws.com/f.csv"
+	optOut := []Option{WithDoubleDashHostsAllowed()}
+	optOutAWS := []Option{WithDoubleDashHostsAllowed(), WithCloudProviderDenies(CloudAWS)}
+
+	cases := []struct {
+		name      string
+		opts      []Option
+		allowList []string
+		url       string
+		want      DenyReason // nil means allowed
+	}{
+		{name: "default rejects --", url: "https://foo--bar.example.com/", want: &HostnameInvalid{}},
+		{name: "default rejects s3express", url: s3express, want: &HostnameInvalid{}},
+		{name: "default allows punycode", url: "https://xn--nxasmq6b.example.com/"},
+
+		{name: "opt-out allows --", opts: optOut, url: "https://foo--bar.example.com/"},
+		{name: "opt-out allows s3express", opts: optOut, url: s3express},
+		{name: "opt-out allows punycode", opts: optOut, url: "https://xn--nxasmq6b.example.com/"},
+		{name: "opt-out in allow-list policy", opts: optOut, allowList: []string{"amazonaws.com"}, url: s3express},
+
+		{name: "opt-out keeps denied suffix", opts: optOutAWS, url: "https://foo--bar.compute.internal/", want: &DomainSuffixDenied{}},
+		{name: "opt-out keeps metadata IP", opts: optOutAWS, url: "http://169.254.169.254/latest/meta-data/", want: &BareIPDeniedBeforeScheme{}},
+		{name: "opt-out keeps control characters", opts: optOut, url: "https://foo--bar.example.com/pa\nth", want: &HostnameInvalid{}},
+		{name: "opt-out keeps scheme check", opts: optOut, url: "ftp://foo--bar.example.com/", want: &SchemeNotAllowed{}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var (
+				p   *Policy
+				err error
+			)
+			if len(tc.allowList) > 0 {
+				p, err = NewAllowListPolicy(PresetExternalOnly, tc.allowList, tc.opts...)
+			} else {
+				p, err = NewPolicy(PresetExternalOnly, tc.opts...)
+			}
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+
+			err = p.IsAllowed(t.Context(), tc.url)
+			if tc.want == nil {
+				if err != nil {
+					t.Fatalf("expected allowed, got %v", err)
+				}
+				return
+			}
+			var blocked *BlockedError
+			if !errors.As(err, &blocked) {
+				t.Fatalf("expected *BlockedError, got %v", err)
+			}
+			if blocked.Kind() != tc.want.Kind() {
+				t.Errorf("expected %T, got %T: %v", tc.want, blocked.Reason, blocked)
+			}
+		})
+	}
+}
