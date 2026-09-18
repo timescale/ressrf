@@ -128,6 +128,15 @@ func (b *PolicyBuilder) AddDeniedSuffixes(suffixes ...string) *PolicyBuilder {
 	return b
 }
 
+// AllowDoubleDashHosts turns off the validator's rejection of host labels
+// containing "--" outside the "xn--" punycode prefix. Legitimate hostnames
+// carry such labels, e.g. S3 Express directory buckets
+// ("name--use1-az4--x-s3.s3express-use1-az4.us-east-1.amazonaws.com").
+func (b *PolicyBuilder) AllowDoubleDashHosts() *PolicyBuilder {
+	b.validator.SetRejectDoubleDashHosts(false)
+	return b
+}
+
 // AddDomainAllowList registers per-policy allow-list suffixes. Once any
 // suffix is registered, non-IP hosts that don't match one are rejected with
 // DomainNotInAllowList. The name says what the call does; for additive

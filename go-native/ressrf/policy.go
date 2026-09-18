@@ -157,6 +157,7 @@ type config struct {
 	denyCIDRs           []string
 	cloudProviderDenies []string
 	deniedSuffixes      []string
+	allowDoubleDash     bool
 	urlAllow            []URLRule
 	urlDeny             []URLRule
 	sink                AuditSink
@@ -200,6 +201,18 @@ func WithCloudProviderDenies(providers ...CloudProvider) Option {
 // NewAllowListPolicy.
 func WithDeniedDomainSuffixes(suffixes ...string) Option {
 	return func(c *config) { c.deniedSuffixes = append(c.deniedSuffixes, suffixes...) }
+}
+
+// WithDoubleDashHostsAllowed turns off the rejection of host labels that
+// contain "--" outside the "xn--" punycode prefix. The default rejects them
+// as HostnameInvalid, which blocks legitimate hostnames such as S3 Express
+// directory buckets ("name--use1-az4--x-s3.s3express-use1-az4.us-east-1.amazonaws.com").
+// Every other check is unchanged: denied suffixes, bare-IP and CIDR rules,
+// and control-character rejection still apply. Mirrors
+// UriValidator::reject_double_dash(false) in the Rust core. Valid for both
+// NewPolicy and NewAllowListPolicy.
+func WithDoubleDashHostsAllowed() Option {
+	return func(c *config) { c.allowDoubleDash = true }
 }
 
 // CloudServiceSuffixes returns the public service-domain suffixes for each
@@ -308,6 +321,9 @@ func buildPolicy(preset Preset, allowList []string, opts []Option) (*Policy, err
 	core.AddCloudProviderDenies(cfg.cloudProviderDenies...)
 	if len(cfg.deniedSuffixes) > 0 {
 		core.AddDeniedSuffixes(cfg.deniedSuffixes...)
+	}
+	if cfg.allowDoubleDash {
+		core.AllowDoubleDashHosts()
 	}
 	if len(allowList) > 0 {
 		core.AddDomainAllowList(allowList...)

@@ -115,6 +115,8 @@ async fn safe_resolver_pins_resolved_ips_no_toctou() {
     }
 
     impl DnsBackend for RebindingDns {
+        // The trait method is async; this fake answers without awaiting.
+        #[allow(clippy::unused_async_trait_impl)]
         async fn resolve(&self, _host: &str, port: u16) -> std::io::Result<Vec<SocketAddr>> {
             let n = self.calls.fetch_add(1, Ordering::SeqCst);
             let ip: std::net::IpAddr = if n == 0 {
