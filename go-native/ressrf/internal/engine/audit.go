@@ -6,7 +6,8 @@ type AuditKind string
 
 const (
 	// AuditPolicyCreated fires once per Build() with the policy's preset,
-	// cloud modules, and deny/allow counts.
+	// cloud modules, deny/allow counts, and whether "--" host labels are
+	// allowed.
 	AuditPolicyCreated AuditKind = "policy_created"
 	// AuditURLValidated fires for every IsRequestAllowed call with the URL,
 	// the parsed scheme + host, and an `allowed` flag.

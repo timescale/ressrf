@@ -817,3 +817,46 @@ func TestDoubleDashHosts(t *testing.T) {
 		})
 	}
 }
+
+// TestPolicyCreatedRecordsDoubleDashOptOut: an operator reading the audit
+// stream must see when hostname hardening was relaxed.
+func TestPolicyCreatedRecordsDoubleDashOptOut(t *testing.T) {
+	cases := []struct {
+		name string
+		opts []Option
+		want bool
+	}{
+		{name: "default", want: false},
+		{name: "opt-out", opts: []Option{WithDoubleDashHostsAllowed()}, want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var events []AuditEvent
+			sink := AuditFunc(func(_ context.Context, e *AuditEvent) {
+				mu.Lock()
+				events = append(events, *e)
+				mu.Unlock()
+			})
+			if _, err := NewPolicy(PresetExternalOnly, append(tc.opts, WithAuditSink(sink))...); err != nil {
+				t.Fatalf("build: %v", err)
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			if len(events) != 1 || events[0].Kind != "policy_created" {
+				t.Fatalf("expected one policy_created event, got %+v", events)
+			}
+			var fields struct {
+				DoubleDashHostsAllowed bool `json:"double_dash_hosts_allowed"`
+			}
+			if err := json.Unmarshal(events[0].Fields, &fields); err != nil {
+				t.Fatalf("decode fields: %v", err)
+			}
+			if fields.DoubleDashHostsAllowed != tc.want {
+				t.Errorf("double_dash_hosts_allowed = %v, want %v", fields.DoubleDashHostsAllowed, tc.want)
+			}
+		})
+	}
+}

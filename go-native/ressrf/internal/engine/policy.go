@@ -200,6 +200,10 @@ func (b *PolicyBuilder) Build() (*Policy, error) {
 				"cloud_modules": p.cloudModules,
 				"deny_count":    p.denySet.Len(),
 				"allow_count":   p.allowSet.Len(),
+				// Operators must be able to see that hostname hardening was
+				// relaxed. Go native only; the Rust core does not expose the
+				// setter on its builder yet.
+				"double_dash_hosts_allowed": !p.validator.rejectDoubleDashHosts,
 			},
 		})
 	}
