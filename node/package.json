@@ -27,10 +27,10 @@
     "pretest": "npm run build:wasm"
   },
   "devDependencies": {
-    "tsx": "^4.23.0",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
-    "@types/node": "^26.1.1",
-    "@types/ssh2": "^1.15.5"
+    "@types/node": "^26.4.1",
+    "@types/ssh2": "^1.15.6"
   },
   "peerDependencies": {
     "undici": ">=8.2.0",

@@ -128,7 +128,7 @@ try {
 |----------|---------|--------------|
 | Rust | `cargo add ressrf-core` | Rust 1.75+ |
 | Go (wazero) | `go get github.com/timescale/ressrf/go/ressrf` | Go 1.26+ |
-| Go (native) | `go get github.com/timescale/ressrf/go-native/ressrf` | Go 1.25+ |
+| Go (native) | `go get github.com/timescale/ressrf/go-native/ressrf` | Go 1.26+ |
 | Python | `pip install ressrf` | Python 3.10+ |
 | Node.js | `npm install ressrf` | Node.js 20+ |
 

@@ -280,7 +280,7 @@ This release ships two Go modules in the same repo, under one release cadence an
 | Path | Runtime | Engine | Picking criteria |
 |------|---------|--------|------------------|
 | `github.com/timescale/ressrf/go/ressrf` | `wazero`, `//go:embed core.wasm` | Rust `ressrf-core` (WASM) | Guaranteed bit-for-bit parity with the Rust core; security-strict consumers; willing to carry the wazero runtime weight; Go 1.26+ |
-| `github.com/timescale/ressrf/go-native/ressrf` | Native Go on `net/netip` | Reimplemented in Go, pinned to WASM via diffuzz | Native debuggability (`pprof`/`delve` through the whole stack); zero WASM runtime weight; idiomatic Go API; split `httpx`/`tcpx`/`sshx` packages so non-SSH consumers do not pull `golang.org/x/crypto`; typed sealed-sum `DenyReason`; Go 1.25+ |
+| `github.com/timescale/ressrf/go-native/ressrf` | Native Go on `net/netip` | Reimplemented in Go, pinned to WASM via diffuzz | Native debuggability (`pprof`/`delve` through the whole stack); zero WASM runtime weight; idiomatic Go API; split `httpx`/`tcpx`/`sshx` packages so non-SSH consumers do not pull `golang.org/x/crypto`; typed sealed-sum `DenyReason`; Go 1.26+ |
 
 The native port consumes the same JSON conformance vectors and `crates/ressrf-core/config/` files as the wazero binding (no vendored copies), and additionally runs a differential-fuzz harness against the wazero binding's embedded `core.wasm` via `.github/workflows/diffuzz.yml`. Three parser-level divergences were caught and fixed via diffuzz during the native port's initial development; vectors alone would not have seen them.
 
@@ -302,7 +302,7 @@ func TestSomething(t *testing.T) {
 |----------|---------|--------------|
 | Rust | `cargo add ressrf-core` | Rust 1.75+ |
 | Go (wazero) | `go get github.com/timescale/ressrf/go/ressrf` | Go 1.26+ |
-| Go (native) | `go get github.com/timescale/ressrf/go-native/ressrf` | Go 1.25+ |
+| Go (native) | `go get github.com/timescale/ressrf/go-native/ressrf` | Go 1.26+ |
 | Python | `pip install ressrf` | Python 3.10+ |
 | Node.js | `npm install ressrf` | Node.js 20+ |
 
