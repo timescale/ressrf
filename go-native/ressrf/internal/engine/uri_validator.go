@@ -26,6 +26,15 @@ func NewURIValidator() *URIValidator {
 	}
 }
 
+// SetRejectDoubleDashHosts mirrors UriValidator::reject_double_dash in the
+// Rust core. When false, a host label containing "--" outside the "xn--"
+// punycode prefix is no longer rejected as HostnameInvalid. Every other check
+// (schemes, denied suffixes, bare-IP and CIDR rules, control characters) is
+// unchanged.
+func (v *URIValidator) SetRejectDoubleDashHosts(reject bool) {
+	v.rejectDoubleDashHosts = reject
+}
+
 func (v *URIValidator) AddDeniedSuffixes(suffixes []string) {
 	for _, s := range suffixes {
 		v.deniedSuffixes = append(v.deniedSuffixes, strings.ToLower(s))

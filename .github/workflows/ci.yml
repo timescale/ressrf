@@ -92,19 +92,44 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           persist-credentials: true # needed for git push in commit step
-      - run: rustup toolchain install stable --profile minimal --target wasm32-wasip1
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # core.wasm is a build output of the Rust workspace. Rebuilding it on
+      # every run makes the unpinned stable toolchain push a new binary onto
+      # PRs that touched no Rust at all. Only rebuild when an input changed.
+      - name: Detect changes to core.wasm inputs
+        id: inputs
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git fetch --no-tags --depth=1 origin "$BASE"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet "$BASE" HEAD -- crates Cargo.toml Cargo.lock rust-toolchain rust-toolchain.toml go/ressrf/build_wasm.sh .github/workflows/ci.yml; then
+            echo "core.wasm inputs unchanged, skipping rebuild"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.inputs.outputs.changed == 'true'
+        run: rustup toolchain install stable --profile minimal --target wasm32-wasip1
+      - if: steps.inputs.outputs.changed == 'true'
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Install wasm-opt
+        if: steps.inputs.outputs.changed == 'true'
         run: |
           curl -fsSL https://github.com/WebAssembly/binaryen/releases/download/version_129/binaryen-version_129-x86_64-linux.tar.gz \
             | sudo tar -xz -C /usr/local --strip-components=1
       - name: Install wasm-tools
+        if: steps.inputs.outputs.changed == 'true'
         run: cargo install wasm-tools --locked
       - name: Rebuild core.wasm
+        if: steps.inputs.outputs.changed == 'true'
         run: bash go/ressrf/build_wasm.sh
       - name: Copy core.wasm to node/
+        if: steps.inputs.outputs.changed == 'true'
         run: cp go/ressrf/core.wasm node/core.wasm
       - name: Commit if changed
+        if: steps.inputs.outputs.changed == 'true'
         run: |
           if git diff --quiet go/ressrf/core.wasm node/core.wasm; then
             echo "core.wasm is up to date"

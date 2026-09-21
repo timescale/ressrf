@@ -128,6 +128,15 @@ func (b *PolicyBuilder) AddDeniedSuffixes(suffixes ...string) *PolicyBuilder {
 	return b
 }
 
+// AllowDoubleDashHosts turns off the validator's rejection of host labels
+// containing "--" outside the "xn--" punycode prefix. Legitimate hostnames
+// carry such labels, e.g. S3 Express directory buckets
+// ("name--use1-az4--x-s3.s3express-use1-az4.us-east-1.amazonaws.com").
+func (b *PolicyBuilder) AllowDoubleDashHosts() *PolicyBuilder {
+	b.validator.SetRejectDoubleDashHosts(false)
+	return b
+}
+
 // AddDomainAllowList registers per-policy allow-list suffixes. Once any
 // suffix is registered, non-IP hosts that don't match one are rejected with
 // DomainNotInAllowList. The name says what the call does; for additive
@@ -191,6 +200,10 @@ func (b *PolicyBuilder) Build() (*Policy, error) {
 				"cloud_modules": p.cloudModules,
 				"deny_count":    p.denySet.Len(),
 				"allow_count":   p.allowSet.Len(),
+				// Operators must be able to see that hostname hardening was
+				// relaxed. Go native only; the Rust core does not expose the
+				// setter on its builder yet.
+				"double_dash_hosts_allowed": !p.validator.rejectDoubleDashHosts,
 			},
 		})
 	}
