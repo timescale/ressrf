@@ -20,7 +20,7 @@ ressrf's Rust core only requires the Rust compiler. The full multi-language work
 | `wasm32-wasip1` target | via `rustup target add` | WASM module rebuild |
 | `wasm-tools` | latest | Stripping debug sections from WASM binary |
 | `wasm-opt` | latest (optional) | Size-optimizing WASM binary (`-Oz`) |
-| Go | 1.25+ (native port) / 1.26+ (wazero binding) | Both Go packages |
+| Go | 1.26+ | Both Go packages |
 | Python | 3.10+ | Python bindings |
 | `uv` | latest | Python environment management |
 | `maturin` | latest | Building the PyO3 native extension |

@@ -63,6 +63,11 @@ jobs:
           go-version-file: ${{ matrix.module }}/go.mod
           cache-dependency-path: ${{ matrix.module }}/go.sum
       - name: Install govulncheck
+        # setup-go sets GOTOOLCHAIN=local. Latest govulncheck may need a
+        # newer compiler than the module pin, so let the install step
+        # fetch one. The scan below still uses the module's toolchain.
+        env:
+          GOTOOLCHAIN: auto
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
         working-directory: ${{ matrix.module }}
