@@ -104,7 +104,7 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --quiet "$BASE" HEAD -- crates Cargo.toml Cargo.lock go/ressrf/build_wasm.sh .github/workflows/ci.yml; then
+          if git diff --quiet "$BASE" HEAD -- crates Cargo.toml Cargo.lock rust-toolchain rust-toolchain.toml go/ressrf/build_wasm.sh .github/workflows/ci.yml; then
             echo "core.wasm inputs unchanged, skipping rebuild"
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else

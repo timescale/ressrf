@@ -775,10 +775,12 @@ func TestDoubleDashHosts(t *testing.T) {
 		{name: "opt-out allows s3express", opts: optOut, url: s3express},
 		{name: "opt-out allows punycode", opts: optOut, url: "https://xn--nxasmq6b.example.com/"},
 		{name: "opt-out in allow-list policy", opts: optOut, allowList: []string{"amazonaws.com"}, url: s3express},
+		{name: "opt-out keeps allow-list", opts: optOut, allowList: []string{"example.com"}, url: s3express, want: &DomainNotInAllowList{}},
 
 		{name: "opt-out keeps denied suffix", opts: optOutAWS, url: "https://foo--bar.compute.internal/", want: &DomainSuffixDenied{}},
 		{name: "opt-out keeps metadata IP", opts: optOutAWS, url: "http://169.254.169.254/latest/meta-data/", want: &BareIPDeniedBeforeScheme{}},
-		{name: "opt-out keeps control characters", opts: optOut, url: "https://foo--bar.example.com/pa\nth", want: &HostnameInvalid{}},
+		{name: "opt-out keeps control characters in host", opts: optOut, url: "https://foo--bar.example.com%0a/", want: &HostnameInvalid{}},
+		{name: "opt-out keeps control characters in path", opts: optOut, url: "https://foo--bar.example.com/pa\nth", want: &HostnameInvalid{}},
 		{name: "opt-out keeps scheme check", opts: optOut, url: "ftp://foo--bar.example.com/", want: &SchemeNotAllowed{}},
 	}
 
