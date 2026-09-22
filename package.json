@@ -12,8 +12,10 @@
   },
   "exports": {
     ".": {
+      "types": "./node/dist/index.d.ts",
       "import": "./node/dist/index.js",
-      "types": "./node/dist/index.d.ts"
+      "require": "./node/dist/index.js",
+      "default": "./node/dist/index.js"
     }
   },
   "files": [
