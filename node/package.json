@@ -20,6 +20,7 @@
     "core.wasm"
   ],
   "scripts": {
+    "prepare": "tsc",
     "build": "tsc",
     "build:wasm": "bash ../go/ressrf/build_wasm.sh && cp ../go/ressrf/core.wasm core.wasm",
     "lint": "tsc --noEmit",
