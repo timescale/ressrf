@@ -1,0 +1,35 @@
+{
+  "name": "ressrf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SSRF prevention library powered by a WASM policy engine",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/timescale/ressrf",
+    "directory": "node"
+  },
+  "exports": {
+    ".": {
+      "types": "./node/dist/index.d.ts",
+      "import": "./node/dist/index.js",
+      "require": "./node/dist/index.js",
+      "default": "./node/dist/index.js"
+    }
+  },
+  "files": [
+    "node/dist",
+    "node/core.wasm"
+  ],
+  "scripts": {
+    "prepare": "tsc -p node"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

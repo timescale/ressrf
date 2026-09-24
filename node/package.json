@@ -11,8 +11,10 @@
   },
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -20,6 +22,7 @@
     "core.wasm"
   ],
   "scripts": {
+    "prepare": "tsc",
     "build": "tsc",
     "build:wasm": "bash ../go/ressrf/build_wasm.sh && cp ../go/ressrf/core.wasm core.wasm",
     "lint": "tsc --noEmit",
