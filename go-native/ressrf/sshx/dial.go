@@ -80,7 +80,7 @@ func Dial(ctx context.Context, p *ressrf.Policy, addr string, config *ssh.Client
 	// ssh.NewClientConn ignores ctx, so ctx expiry closes the socket to
 	// unblock the stalled handshake read. Check the cancel before err: the
 	// close makes err "use of closed network connection", which would hide
-	// the ctx error. Pattern from live-sync #481.
+	// the ctx error.
 	stopHandshakeCancel := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	c, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
 	if !stopHandshakeCancel() {
