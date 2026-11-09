@@ -1,6 +1,6 @@
 module github.com/timescale/ressrf/go-native/ressrf
 
-go 1.26.6
+go 1.26.10
 
 require (
 	github.com/tetratelabs/wazero v1.12.0
