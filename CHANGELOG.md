@@ -376,7 +376,7 @@ For a deeper walkthrough of the architecture and how to extend ressrf with new c
 
 **IPv4-mapped-IPv6 bypass resistance.** The CIDR engine normalizes IPv4-mapped-IPv6 addresses (::ffff:127.0.0.1) and adjusts prefixes by +96, preventing bypass via address representation tricks.
 
-**IPv4-embedding IPv6 ranges denied.** The default deny list denies the IPv4-translated (`::ffff:0:0:0/96`, RFC 2765) and IPv4-compatible (`::/96`, RFC 4291) IPv6 ranges as whole ranges, the same way it treats 6to4, Teredo, and NAT64.
+**IPv4-embedding IPv6 ranges denied.** The default deny list denies the IPv4-translated (`::ffff:0:0:0/96`, RFC 2765, obsoleted by RFC 7915) and IPv4-compatible (`::/96`, RFC 4291) IPv6 ranges as whole ranges, the same way it treats 6to4, Teredo, and NAT64.
 
 **Userinfo bypass resistance.** The URI validator detects and rejects URL-encoded `%40` (`@`) in userinfo positions, preventing parser confusion attacks.
 

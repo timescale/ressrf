@@ -7,8 +7,8 @@
 //! Tier 1b: IANA infrastructure ranges (Globally Reachable = True but no legitimate SSRF
 //!     destination use case: AS112, AMT, deprecated 6to4 relay).
 //! Tier 1c: Overrides for ranges that wrap attacker-controlled IPv4 inside IPv6 (6to4,
-//!     Teredo, NAT64, IPv4-translated, IPv4-compatible). Critical for IPv6-only k8s
-//!     with DNS64.
+//!     Teredo, NAT64, IPv4-translated, IPv4-compatible). NAT64 is critical for
+//!     IPv6-only k8s, where DNS64 yields NAT64 addresses.
 //! Tier 2: CSP metadata endpoints (IMDS, Wireserver, ECS).
 
 use alloc::vec::Vec;

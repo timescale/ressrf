@@ -218,7 +218,7 @@
         {
           "cidr": "::ffff:0:0:0/96",
           "rfc": "RFC2765",
-          "name": "IPv4-translated, SIIT (wraps arbitrary IPv4)"
+          "name": "IPv4-translated, SIIT, obsoleted by RFC 7915 (wraps arbitrary IPv4)"
         },
         {
           "cidr": "::/96",
