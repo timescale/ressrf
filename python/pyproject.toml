@@ -45,7 +45,7 @@ module-name = "ressrf._core"
 testpaths = ["tests"]
 
 [tool.ty.rules]
-unresolved-import = "ignore"
+import-not-found = "ignore"
 
 [tool.ruff]
 target-version = "py310"
