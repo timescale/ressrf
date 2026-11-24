@@ -249,7 +249,7 @@ python scripts/generate_ip_ranges.py --validate-only
 
 ## Testing
 
-Shared test vectors in `tests/vectors/` ensure identical behavior across all languages, including a 92-case `ssrf_techniques.json` covering the full SSRF bypass technique taxonomy (IP representation tricks, IPv6 variants, parser confusion, protocol smuggling, cloud metadata, Unicode/IDN, and more):
+Shared test vectors in `tests/vectors/` ensure identical behavior across all languages, including a 99-case `ssrf_techniques.json` covering the full SSRF bypass technique taxonomy (IP representation tricks, IPv6 variants, parser confusion, protocol smuggling, cloud metadata, Unicode/IDN, and more):
 
 ```bash
 cargo test --workspace --all-features          # Rust

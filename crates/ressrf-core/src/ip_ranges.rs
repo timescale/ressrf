@@ -7,7 +7,8 @@
 //! Tier 1b: IANA infrastructure ranges (Globally Reachable = True but no legitimate SSRF
 //!     destination use case: AS112, AMT, deprecated 6to4 relay).
 //! Tier 1c: Overrides for ranges that wrap attacker-controlled IPv4 inside IPv6 (6to4,
-//!     Teredo, NAT64). Critical for IPv6-only k8s with DNS64.
+//!     Teredo, NAT64, IPv4-translated, IPv4-compatible). NAT64 is critical for
+//!     IPv6-only k8s, where DNS64 yields NAT64 addresses.
 //! Tier 2: CSP metadata endpoints (IMDS, Wireserver, ECS).
 
 use alloc::vec::Vec;
@@ -53,6 +54,7 @@ pub fn default_deny_set() -> Vec<Cidr> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cidr::CidrSet;
     use core::net::IpAddr;
 
     #[test]
@@ -119,6 +121,49 @@ mod tests {
         assert!(deny.iter().any(|c| c.contains(teredo)));
         let nat64: IpAddr = "64:ff9b::192.168.1.1".parse().unwrap();
         assert!(deny.iter().any(|c| c.contains(nat64)));
+    }
+
+    #[test]
+    fn deny_set_covers_ipv4_embedding_ipv6() {
+        // Not IPv4-mapped, so the embedded IPv4 is never unmapped: deny whole ranges.
+        let mut set = CidrSet::new();
+        for cidr in default_deny_set() {
+            set.add(cidr);
+        }
+        let cases: &[(&str, &str)] = &[
+            ("::ffff:0:127.0.0.1", "::ffff:0:0:0/96"),
+            ("::ffff:0:a9fe:a9fe", "::ffff:0:0:0/96"),
+            ("::ffff:0:10.0.0.1", "::ffff:0:0:0/96"),
+            ("::127.0.0.1", "::/96"),
+            ("::a9fe:a9fe", "::/96"),
+            ("::10.0.0.1", "::/96"),
+        ];
+        for &(ip_str, want_cidr) in cases {
+            let ip: IpAddr = ip_str.parse().unwrap();
+            let got = set
+                .contains(ip)
+                .unwrap_or_else(|| panic!("Expected {ip_str} to be in deny set"));
+            assert_eq!(got.original(), want_cidr, "first match for {ip_str}");
+            assert_eq!(got.source(), DataTier::Override, "tier for {ip_str}");
+        }
+
+        // The more specific IANA entries inside ::/96 still win first-match.
+        let loopback = set.contains("::1".parse().unwrap()).unwrap();
+        assert_eq!(loopback.original(), "::1/128");
+        assert_eq!(loopback.source(), DataTier::Iana);
+        let unspecified = set.contains("::".parse().unwrap()).unwrap();
+        assert_eq!(unspecified.original(), "::/128");
+        assert_eq!(unspecified.source(), DataTier::Iana);
+
+        // IPv4-mapped and ordinary public IPv6 sit outside both ranges.
+        for ip_str in ["::ffff:8.8.8.8", "2606:4700:4700::1111", "8.8.8.8"] {
+            let ip: IpAddr = ip_str.parse().unwrap();
+            let matched = set.contains(ip);
+            assert!(
+                matched.is_none(),
+                "Expected {ip_str} to NOT be in deny set, matched {matched:?}"
+            );
+        }
     }
 
     #[test]

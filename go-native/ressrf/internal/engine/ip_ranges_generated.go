@@ -48,11 +48,13 @@ var ianaIPv6Deny = [...]CIDR{
 	mustParseCIDR("ff00::/8", TierIANA),       // Multicast (RFC4291)
 }
 
-// overrideDeny: Tier 1c: ranges wrapping attacker-controlled IPv4 inside IPv6 (6to4, Teredo, NAT64)
+// overrideDeny: Tier 1c: ranges wrapping attacker-controlled IPv4 inside IPv6 (6to4, Teredo, NAT64, IPv4-translated, IPv4-compatible)
 var overrideDeny = [...]CIDR{
-	mustParseCIDR("2002::/16", TierOverride),    // 6to4 (wraps arbitrary IPv4) (RFC3056)
-	mustParseCIDR("2001::/32", TierOverride),    // Teredo (wraps arbitrary IPv4) (RFC4380)
-	mustParseCIDR("64:ff9b::/96", TierOverride), // NAT64 well-known prefix (RFC6052)
+	mustParseCIDR("2002::/16", TierOverride),       // 6to4 (wraps arbitrary IPv4) (RFC3056)
+	mustParseCIDR("2001::/32", TierOverride),       // Teredo (wraps arbitrary IPv4) (RFC4380)
+	mustParseCIDR("64:ff9b::/96", TierOverride),    // NAT64 well-known prefix (RFC6052)
+	mustParseCIDR("::ffff:0:0:0/96", TierOverride), // IPv4-translated, SIIT, obsoleted by RFC 7915 (wraps arbitrary IPv4) (RFC2765)
+	mustParseCIDR("::/96", TierOverride),           // IPv4-compatible, deprecated (wraps arbitrary IPv4) (RFC4291)
 }
 
 // cspMetadataDeny: Tier 2: Cloud provider metadata endpoints

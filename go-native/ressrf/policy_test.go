@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
@@ -243,6 +244,74 @@ func TestCloudProviderDenies(t *testing.T) {
 			t.Errorf("expected public IP to be allowed, got: %v", err)
 		}
 	})
+}
+
+// TestIPv4EmbeddingIPv6Denied checks ::ffff:0:0:0/96 and ::/96 are denied as
+// whole ranges: netip doesn't report them as Is4In6, so they can't be unmapped.
+func TestIPv4EmbeddingIPv6Denied(t *testing.T) {
+	ctx := context.Background()
+	policy, err := NewPolicy(PresetExternalOnly, WithCloudProviderDenies(CloudAWS, CloudAzure, CloudGCP))
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	cases := []struct {
+		ip       string
+		wantCIDR string
+	}{
+		{ip: "::ffff:0:127.0.0.1", wantCIDR: "::ffff:0:0:0/96"},
+		{ip: "::ffff:0:a9fe:a9fe", wantCIDR: "::ffff:0:0:0/96"},
+		{ip: "::ffff:0:10.0.0.1", wantCIDR: "::ffff:0:0:0/96"},
+		{ip: "::127.0.0.1", wantCIDR: "::/96"},
+		{ip: "::a9fe:a9fe", wantCIDR: "::/96"},
+		{ip: "::10.0.0.1", wantCIDR: "::/96"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.ip, func(t *testing.T) {
+			want := &InDenyCIDR{CIDR: tc.wantCIDR, Source: TierOverride}
+
+			assertInDenyCIDR := func(label string, err error) {
+				t.Helper()
+				var blocked *BlockedError
+				if !errors.As(err, &blocked) {
+					t.Fatalf("%s(%s): expected *BlockedError, got %v", label, tc.ip, err)
+				}
+				got, ok := blocked.Reason.(*InDenyCIDR)
+				if !ok {
+					t.Fatalf("%s(%s): expected *InDenyCIDR, got %T: %v", label, tc.ip, blocked.Reason, blocked)
+				}
+				if *got != *want {
+					t.Errorf("%s(%s): got %+v, want %+v", label, tc.ip, *got, *want)
+				}
+			}
+			assertInDenyCIDR("IsNetworkAllowed", policy.IsNetworkAllowed(ctx, []string{tc.ip}))
+			assertInDenyCIDR("IsNetworkAllowedAddrs",
+				policy.IsNetworkAllowedAddrs(ctx, []netip.Addr{netip.MustParseAddr(tc.ip)}))
+
+			url := "http://[" + tc.ip + "]/"
+			err := policy.IsAllowed(ctx, url)
+			var blocked *BlockedError
+			if !errors.As(err, &blocked) {
+				t.Fatalf("IsAllowed(%s): expected *BlockedError, got %v", url, err)
+			}
+			got, ok := blocked.Reason.(*BareIPDeniedBeforeScheme)
+			if !ok {
+				t.Fatalf("IsAllowed(%s): expected *BareIPDeniedBeforeScheme, got %T: %v", url, blocked.Reason, blocked)
+			}
+			if wantHost := netip.MustParseAddr(tc.ip).String(); got.Host != wantHost {
+				t.Errorf("IsAllowed(%s): Host = %q, want %q", url, got.Host, wantHost)
+			}
+		})
+	}
+
+	for _, ip := range []string{"2606:4700:4700::1111", "::ffff:8.8.8.8"} {
+		if err := policy.IsNetworkAllowed(ctx, []string{ip}); err != nil {
+			t.Errorf("IsNetworkAllowed(%s): expected allowed, got %v", ip, err)
+		}
+		if err := policy.IsAllowed(ctx, "http://["+ip+"]/"); err != nil {
+			t.Errorf("IsAllowed(http://[%s]/): expected allowed, got %v", ip, err)
+		}
+	}
 }
 
 // TestPolicyMode pins the consumer-visible distinction between NewPolicy

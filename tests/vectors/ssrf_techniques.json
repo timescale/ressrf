@@ -169,11 +169,66 @@
       "note": "IPv4-mapped IPv6 form of AWS IMDS"
     },
     {
-      "name": "ipv4_compatible_loopback_known_gap",
+      "name": "ipv4_compatible_ipv6_loopback",
       "category": "ipv6_notation",
       "url": "http://[::127.0.0.1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "Deprecated IPv4-compatible IPv6 (::/96, RFC 4291 2.5.5.1) wrapping loopback"
+    },
+    {
+      "name": "ipv4_compatible_ipv6_imds",
+      "category": "ipv6_notation",
+      "url": "http://[::a9fe:a9fe]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-compatible IPv6 wrapping 169.254.169.254"
+    },
+    {
+      "name": "ipv4_compatible_ipv6_private",
+      "category": "ipv6_notation",
+      "url": "http://[::10.0.0.1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-compatible IPv6 wrapping RFC1918"
+    },
+    {
+      "name": "ipv4_translated_ipv6_loopback",
+      "category": "ipv6_notation",
+      "url": "http://[::ffff:0:127.0.0.1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-translated IPv6 (::ffff:0:0:0/96, RFC 2765) wrapping loopback"
+    },
+    {
+      "name": "ipv4_translated_ipv6_imds",
+      "category": "ipv6_notation",
+      "url": "http://[::ffff:0:a9fe:a9fe]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-translated IPv6 wrapping 169.254.169.254"
+    },
+    {
+      "name": "ipv4_translated_ipv6_private",
+      "category": "ipv6_notation",
+      "url": "http://[::ffff:0:10.0.0.1]/",
+      "expected": "blocked",
+      "reason_type": "bare_ip_denied_before_scheme",
+      "note": "IPv4-translated IPv6 wrapping RFC1918"
+    },
+    {
+      "name": "ipv6_public_allowed",
+      "category": "ipv6_notation",
+      "url": "http://[2606:4700:4700::1111]/",
       "expected": "allowed",
-      "note": "Deprecated IPv4-compatible IPv6 parses to ::7f00:1 (a public IPv6 address), not loopback. Defense relies on the canonical IPv4-mapped form ::ffff:127.0.0.1. Documented as a known gap."
+      "note": "Regression: ordinary public IPv6 literal stays allowed"
+    },
+    {
+      "name": "ipv4_mapped_ipv6_public_allowed",
+      "category": "ipv6_notation",
+      "url": "http://[::ffff:8.8.8.8]/",
+      "expected": "allowed",
+      "note": "Regression: IPv4-mapped public literal stays allowed"
     },
     {
       "name": "ipv6_6to4_wrapping_private",
