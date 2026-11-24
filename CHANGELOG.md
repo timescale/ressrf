@@ -14,7 +14,7 @@ Each entry corresponds to a [GitHub Release](https://github.com/timescale/ressrf
 - Two co-existing Go bindings: a `wazero`-backed binding at `go/ressrf/` that runs the Rust core in WASM, and a native Go port at `go-native/ressrf/` with split `httpx`/`tcpx`/`sshx` subpackages and a typed sealed-sum `DenyReason`. Both share the same JSON conformance vectors and are pinned to the Rust core via a differential-fuzz harness.
 - Pluggable audit logging with zero opinion on which logger to use, consistent across Rust, Go, Python, and Node.js
 - Automated IP ranges codegen from IANA, AWS, Azure, and GCP upstream sources, with a monthly CI refresh workflow
-- Cross-language conformance guaranteed by shared JSON test vectors, including a 92-case SSRF bypass taxonomy, plus multi-OS CI, Docker e2e tests, and a weekly diffuzz job
+- Cross-language conformance guaranteed by shared JSON test vectors, including a 99-case SSRF bypass taxonomy, plus multi-OS CI, Docker e2e tests, and a weekly diffuzz job
 - Published to crates.io, PyPI, npm, and two Go module tags (`go/ressrf/v0.1.0` and `go-native/ressrf/v0.1.0`)
 
 ### Deny-first policy engine
@@ -27,7 +27,7 @@ The core policy engine validates IP addresses and hostnames against configurable
 | `InternalOnly` | Allow only private/internal ranges |
 | `None` | No default ranges, fully custom via add_allowed/add_denied |
 
-The default deny list ships in `crates/ressrf-core/config/ip_ranges.json`, sourced from IANA IPv4 and IPv6 special-purpose registries with hand-curated metadata and cloud-provider additions. It covers private use (RFC 1918), loopback, link-local, CGNAT (100.64.0.0/10), TEST-NETs, benchmarking, reserved/broadcast, IPv6 documentation, Teredo, 6to4, NAT64, and multicast ranges.
+The default deny list ships in `crates/ressrf-core/config/ip_ranges.json`, sourced from IANA IPv4 and IPv6 special-purpose registries with hand-curated metadata and cloud-provider additions. It covers private use (RFC 1918), loopback, link-local, CGNAT (100.64.0.0/10), TEST-NETs, benchmarking, reserved/broadcast, IPv6 documentation, Teredo, 6to4, NAT64, IPv4-translated (`::ffff:0:0:0/96`), IPv4-compatible (`::/96`), and multicast ranges.
 
 The CIDR engine handles IPv4-mapped-IPv6 normalization (adjusting the prefix by +96), rejects octal/hex IP representations and zone IDs, and supports edge cases including /0 and /128 prefixes. All unspecified addresses (0.0.0.0, ::) are denied by default. Protocol rules require HTTPS by default and deny plaintext HTTP unless a caller explicitly opts in; header rules can require or reject named headers before a request proceeds.
 
@@ -235,7 +235,7 @@ All four language implementations load the same shared JSON test vectors from `t
 | `redirect_chains.json` | Multi-hop redirect re-validation |
 | `audit_events.json` | Audit event structure |
 | `url_rules.json` | URL rule glob/regex matching, deny precedence, bypass_ip_check |
-| `ssrf_techniques.json` | 92-case SSRF bypass taxonomy covering IP representation tricks, IPv6 variants, parser confusion, protocol smuggling, cloud metadata, Unicode/IDN, and more |
+| `ssrf_techniques.json` | 99-case SSRF bypass taxonomy covering IP representation tricks, IPv6 variants, parser confusion, protocol smuggling, cloud metadata, Unicode/IDN, and more |
 
 Any behavioral divergence between languages causes an independent test failure. The CI matrix runs on Linux, macOS, and Windows for all languages.
 
@@ -372,9 +372,11 @@ For a deeper walkthrough of the architecture and how to extend ressrf with new c
 
 **Differential fuzz across Go bindings.** `.github/workflows/diffuzz.yml` runs the native Go port against the wazero binding's `core.wasm` on every PR touching either parser, plus weekly. Any allow/block divergence fails the build; persisted divergence fixtures are replayed deterministically via `make fuzz-rust-regress`.
 
-**Blind-spot fixes (BS-1..BS-6).** The URI validator hardens against octal/hex/decimal-integer/shorthand IPv4 hosts (BS-1), scheme-less and pseudo-scheme URLs (BS-2), NUL/CRLF parser-differential header injection (BS-3), trailing-dot suffix bypass (BS-4), backslash confusion (BS-5), and UNC paths (BS-6). All six are covered by the 92-case `ssrf_techniques.json` vector and the Tier 2 e2e suite under `crates/ressrf-tcp/tests/ssrf_e2e.rs`.
+**Blind-spot fixes (BS-1..BS-6).** The URI validator hardens against octal/hex/decimal-integer/shorthand IPv4 hosts (BS-1), scheme-less and pseudo-scheme URLs (BS-2), NUL/CRLF parser-differential header injection (BS-3), trailing-dot suffix bypass (BS-4), backslash confusion (BS-5), and UNC paths (BS-6). All six are covered by the 99-case `ssrf_techniques.json` vector and the Tier 2 e2e suite under `crates/ressrf-tcp/tests/ssrf_e2e.rs`.
 
 **IPv4-mapped-IPv6 bypass resistance.** The CIDR engine normalizes IPv4-mapped-IPv6 addresses (::ffff:127.0.0.1) and adjusts prefixes by +96, preventing bypass via address representation tricks.
+
+**IPv4-embedding IPv6 ranges denied.** The default deny list denies the IPv4-translated (`::ffff:0:0:0/96`, RFC 2765) and IPv4-compatible (`::/96`, RFC 4291) IPv6 ranges as whole ranges, the same way it treats 6to4, Teredo, and NAT64.
 
 **Userinfo bypass resistance.** The URI validator detects and rejects URL-encoded `%40` (`@`) in userinfo positions, preventing parser confusion attacks.
 

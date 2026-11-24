@@ -105,6 +105,76 @@
       "reason_type": "in_deny_cidr"
     },
     {
+      "name": "external_only_blocks_ipv4_translated_loopback",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::ffff:0:127.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-translated (::ffff:0:0:0/96, RFC 2765) wrapping loopback"
+    },
+    {
+      "name": "external_only_blocks_ipv4_translated_imds",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::ffff:0:a9fe:a9fe"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-translated wrapping 169.254.169.254"
+    },
+    {
+      "name": "external_only_blocks_ipv4_translated_private",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::ffff:0:10.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-translated wrapping RFC1918"
+    },
+    {
+      "name": "external_only_blocks_ipv4_compatible_loopback",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::127.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-compatible (::/96, RFC 4291 2.5.5.1) wrapping loopback"
+    },
+    {
+      "name": "external_only_blocks_ipv4_compatible_imds",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::a9fe:a9fe"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-compatible wrapping 169.254.169.254"
+    },
+    {
+      "name": "external_only_blocks_ipv4_compatible_private",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::10.0.0.1"],
+      "expected": "blocked",
+      "reason_type": "in_deny_cidr",
+      "note": "IPv4-compatible wrapping RFC1918"
+    },
+    {
+      "name": "external_only_allows_public_ipv6_with_clouds",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["2606:4700:4700::1111"],
+      "expected": "allowed",
+      "note": "Regression: the IPv4-embedding denies must not catch ordinary public IPv6"
+    },
+    {
+      "name": "external_only_allows_ipv4_mapped_public",
+      "preset": "external_only",
+      "cloud_providers": ["aws", "azure", "gcp"],
+      "ips": ["::ffff:8.8.8.8"],
+      "expected": "allowed",
+      "note": "Regression: IPv4-mapped public addresses are outside ::ffff:0:0:0/96 and ::/96"
+    },
+    {
       "name": "external_only_allows_public_ipv6",
       "preset": "external_only",
       "ips": ["2607:f8b0:4004:800::200e"],

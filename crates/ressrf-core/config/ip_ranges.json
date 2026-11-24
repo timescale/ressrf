@@ -198,7 +198,7 @@
       ]
     },
     "override": {
-      "description": "Tier 1c: ranges wrapping attacker-controlled IPv4 inside IPv6 (6to4, Teredo, NAT64)",
+      "description": "Tier 1c: ranges wrapping attacker-controlled IPv4 inside IPv6 (6to4, Teredo, NAT64, IPv4-translated, IPv4-compatible)",
       "entries": [
         {
           "cidr": "2002::/16",
@@ -214,6 +214,16 @@
           "cidr": "64:ff9b::/96",
           "rfc": "RFC6052",
           "name": "NAT64 well-known prefix"
+        },
+        {
+          "cidr": "::ffff:0:0:0/96",
+          "rfc": "RFC2765",
+          "name": "IPv4-translated, SIIT (wraps arbitrary IPv4)"
+        },
+        {
+          "cidr": "::/96",
+          "rfc": "RFC4291",
+          "name": "IPv4-compatible, deprecated (wraps arbitrary IPv4)"
         }
       ]
     },

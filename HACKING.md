@@ -136,7 +136,7 @@ All languages load shared test vectors from `tests/vectors/` to guarantee identi
 | `policy_decisions.json` | Policy presets, allow/deny, cloud providers |
 | `url_validation.json` | URI structure, scheme allowlist, domain matching |
 | `url_rules.json` | Host/path glob, regex deny, `bypass_ip_check` |
-| `ssrf_techniques.json` | SSRF bypass technique taxonomy: IP representation tricks (decimal/octal/hex/shorthand), IPv6 variants (mapped, 6to4, Teredo, NAT64, AWS IMDSv6), URL parser confusion (userinfo, NUL/CRLF, backslash, UNC, trailing dot, scheme-less), protocol smuggling, cloud metadata, Unicode/IDN |
+| `ssrf_techniques.json` | SSRF bypass technique taxonomy: IP representation tricks (decimal/octal/hex/shorthand), IPv6 variants (mapped, IPv4-compatible, IPv4-translated, 6to4, Teredo, NAT64, AWS IMDSv6), URL parser confusion (userinfo, NUL/CRLF, backslash, UNC, trailing dot, scheme-less), protocol smuggling, cloud metadata, Unicode/IDN |
 | `redirect_chains.json` | Multi-hop redirect re-validation |
 | `audit_events.json` | Audit event serialization and field structure |
 
